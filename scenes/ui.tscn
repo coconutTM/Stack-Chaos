@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://bv5gyw3nwe1hg"]
+
+[node name="UI" type="CanvasLayer" unique_id=1422302571]
+
+[node name="ScoreLabel" type="Label" parent="." unique_id=427138736]
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="GameOverLabel" type="Label" parent="." unique_id=135521624]
+offset_left = 128.0
+offset_top = 56.0
+offset_right = 280.0
+offset_bottom = 160.0
+horizontal_alignment = 1
+vertical_alignment = 1
