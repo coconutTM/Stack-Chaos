@@ -10,11 +10,15 @@ const RADIUS := 9.5           # ระยะราบจากแกนกลา
 const HEIGHT := 5.5           # สูงเหนือยอดกอง
 const DRAG_THRESHOLD := 4.0   # ขยับเมาส์เกินกี่พิกเซลถึงนับว่าเป็นการลาก (ไม่ใช่คลิก)
 const DRAG_SENS := 0.012      # เรเดียนต่อพิกเซล
+const SHAKE_MAX := 0.45       # ระยะเลื่อนภาพสูงสุดตอนสั่นเต็มที่ (เมตรที่ระนาบภาพ)
+const SHAKE_DECAY := 1.8      # trauma ลดลงต่อวินาที
 const FOLLOW := 3.0           # ความเร็วตามความสูงกอง (สูตร exp ไม่ขึ้นกับ framerate)
 
 var yaw := 0.0                # มุมกล้องรอบแกน Y (0 = มองจากด้าน +Z เหมือนเดิม)
 var target_y := 0.0           # ความสูงที่กล้องควรโฟกัส (main.gd ตั้งเป็น tower_top)
 var dragging := false         # กำลังลากหมุนอยู่หรือไม่
+
+var _trauma := 0.0            # ความแรงสั่นจอ 0-1 (สั่นจริง = trauma²)
 
 var _focus_y := 0.0
 var _right_down := false
@@ -29,6 +33,22 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_focus_y = lerpf(_focus_y, target_y, 1.0 - exp(-FOLLOW * delta))
 	_update_transform()
+
+	# สั่นจอด้วย h_offset/v_offset (ไม่ยุ่งกับ look_at)
+	_trauma = maxf(0.0, _trauma - SHAKE_DECAY * delta)
+	var power := _trauma * _trauma * SHAKE_MAX
+	h_offset = randf_range(-1.0, 1.0) * power
+	v_offset = randf_range(-1.0, 1.0) * power
+
+
+# สั่นจอค้างอย่างน้อยที่ระดับ level (ใช้กับเอฟเฟกต์ต่อเนื่อง เรียกซ้ำทุกเฟรมระหว่างที่ยังสั่น)
+func rumble(level: float) -> void:
+	_trauma = maxf(_trauma, level)
+
+
+# สั่นจอเพิ่ม amount (0-1 สะสมได้ สูงสุด 1)
+func shake(amount: float) -> void:
+	_trauma = minf(1.0, _trauma + amount)
 
 
 func _unhandled_input(event: InputEvent) -> void:

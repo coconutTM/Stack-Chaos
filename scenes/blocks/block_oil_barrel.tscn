@@ -1,0 +1,36 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://b6ii1x0rv0eof" path="res://scripts/block.gd" id="1_script"]
+[ext_resource type="PhysicsMaterial" path="res://resources/block_physics_slippery.tres" id="2_phys"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_oil"]
+top_radius = 0.5
+bottom_radius = 0.5
+height = 1.1
+radial_segments = 8
+
+[sub_resource type="StandardMaterial3D" id="Material_oil"]
+albedo_color = Color(0.1, 0.13, 0.08, 1)
+roughness = 1.0
+emission_enabled = true
+emission = Color(0.25, 0.55, 0.2, 1)
+emission_energy_multiplier = 0.5
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_oil"]
+height = 1.1
+radius = 0.5
+
+[node name="BlockOilBarrel" type="RigidBody3D"]
+mass = 2.5
+linear_damp = 0.4
+angular_damp = 1.8
+physics_material_override = ExtResource("2_phys")
+script = ExtResource("1_script")
+slippery = true
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+material_override = SubResource("Material_oil")
+mesh = SubResource("CylinderMesh_oil")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CylinderShape3D_oil")

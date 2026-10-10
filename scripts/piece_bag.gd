@@ -4,8 +4,13 @@ extends RefCounted
 # สุ่มชนิดขยะแบบ "ถุง": ใส่ครบทุกชนิดอย่างละชิ้น สลับแล้วหยิบทีละชิ้น หมดค่อยเติมใหม่
 # → ไม่ซ้ำเกินไป และได้ครบทุกชนิดสม่ำเสมอ
 
+var _kinds: Array[int] = []   # ชนิดที่อยู่ในถุง (เปลี่ยนตามวัน ดู GameData.kinds_for_day)
 var _bag: Array[int] = []
 var _last := -1
+
+
+func _init(kinds: Array[int] = []) -> void:
+	_kinds = kinds
 
 
 func next() -> int:
@@ -33,8 +38,7 @@ func give_back(kind: int) -> void:
 # เติมชุดใหม่ (ทุกชนิดอย่างละชิ้น สลับ) ไว้ "หลัง" คิวเดิม คือใส่ที่ต้นอาร์เรย์ (หยิบจากท้าย)
 func _refill() -> void:
 	var fresh: Array[int] = []
-	for kind in Block.KIND_COUNT:
-		fresh.append(kind)
+	fresh.append_array(_kinds)
 	fresh.shuffle()
 	# ชิ้นแรกของชุดใหม่ (ท้ายอาร์เรย์) ต้องไม่ซ้ำกับชิ้นสุดท้ายของคิวเดิม
 	var prev: int = _bag[0] if not _bag.is_empty() else _last

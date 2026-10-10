@@ -22,8 +22,10 @@ var guide: DropGuide
 var dialogue: DialogueBox
 var item_bar: ItemBar
 var look: Ps1Look
+var modifiers: DayModifiers
+var screen_fx: ScreenFx
 var items: ItemSystem
-var bag := PieceBag.new()
+var bag := PieceBag.new(GameData.kinds_for_day(1))
 
 var state := State.TITLE
 var current: Block
@@ -39,6 +41,7 @@ var tower_top := 0.0
 var best_height := 0.0      # ยอดกองสูงสุดของวันนี้ ไว้จับว่ากองล้ม
 var wait_time := 0.0
 var _near_said := false
+var _fragile_said := false
 var _first_drop_said := false
 var _comment_ready_at := 0   # เวลา (ms) ที่ boss คอมเมนต์ได้อีก
 var _screen_at_msec := 0     # เวลา (ms) ที่ขึ้นหน้าจบ ใช้คุม RESTART_DELAY
@@ -48,6 +51,12 @@ func _ready() -> void:
 	look = Ps1Look.new()
 	look.ground = ground
 	add_child(look)
+	modifiers = DayModifiers.new()
+	modifiers.blocks_root = blocks_root
+	modifiers.camera = camera
+	add_child(modifiers)
+	screen_fx = ScreenFx.new()
+	add_child(screen_fx)
 	crane = Crane.new()
 	add_child(crane)
 	guide = DropGuide.new()
@@ -71,6 +80,8 @@ func _process(delta: float) -> void:
 	# กล้องโคจร/ตามความสูงกองเอง (orbit_camera.gd) / ที่นี่แค่บอกความสูงเป้าหมาย
 	camera.target_y = tower_top
 	look.target_y = tower_top
+	modifiers.running = state == State.HOLDING or state == State.WAITING
+	modifiers.follow_y = tower_top
 
 	var holding := state == State.HOLDING
 	# ระหว่างลากหมุนกล้องไม่ต้องให้ชิ้นที่ถือวิ่งตามเมาส์
@@ -93,8 +104,9 @@ func _physics_process(delta: float) -> void:
 		if b.global_position.y >= KILL_Y:
 			continue
 		var was_current := b == current
+		var fragile := (b as Block) != null and (b as Block).fragile
 		b.queue_free()
-		if _register_fail("fail"):
+		if _register_fail("fail", fragile):
 			return
 		if was_current:
 			_reset_time()
@@ -112,9 +124,10 @@ func _physics_process(delta: float) -> void:
 		if current.settled or wait_time > MAX_WAIT:
 			# ตกลงพื้นข้างกองแทนที่จะอยู่บนกอง = นับว่าเสียชิ้นนี้ (เอาออกจากฉาก ไม่นับคะแนน)
 			if _is_off_stack(current):
+				var fragile := current.fragile
 				current.queue_free()
 				_reset_time()
-				if _register_fail("off_stack"):
+				if _register_fail("off_stack", fragile):
 					return
 				_advance_or_end()
 				return
@@ -197,13 +210,16 @@ func _start_day() -> void:
 	failed_attempts = 0
 	pieces_used = 0
 	_near_said = false
+	_fragile_said = false
 	_first_drop_said = false
+	bag = PieceBag.new(GameData.kinds_for_day(day))
+	modifiers.start(d.get("modifiers", []))
 	_comment_ready_at = 0
 	score_label.show()
 	update_ui()
 
 	state = State.DIALOGUE
-	await dialogue.say(_lines(Dialogue.DAY_INTRO[day]))
+	await dialogue.say(_lines(_intro_lines()))
 
 	# boss แจก item สุ่มตอนต้นวัน
 	var given := items.grant_daily()
@@ -219,13 +235,19 @@ func _start_day() -> void:
 func _end_day(passed: bool, reason := "") -> void:
 	state = State.DIALOGUE
 	_reset_time()
+	modifiers.stop()
 	for b in blocks_root.get_children():
 		var blk := b as Block
 		if blk:
 			blk.freeze_in_place()   # หยุดฟิสิกส์ ไม่ให้กองกลิ้งต่อระหว่าง boss พูด
 
 	if not passed:
-		await dialogue.say(_lines(Dialogue.FIRED_FAILS if reason == "fails" else Dialogue.FIRED_PIECES))
+		var fired_lines: Array = Dialogue.FIRED_PIECES
+		if reason == "fails":
+			fired_lines = Dialogue.FIRED_FAILS
+		elif reason == "fragile":
+			fired_lines = Dialogue.FIRED_FRAGILE
+		await dialogue.say(_lines(fired_lines))
 		_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nLOST: %d PIECES\n\nclick to start over" % [
 			day, tower_top, quota_height, failed_attempts
 		])
@@ -245,6 +267,7 @@ func _end_day(passed: bool, reason := "") -> void:
 func _show_title() -> void:
 	state = State.TITLE
 	_reset_time()
+	modifiers.stop()
 	for b in blocks_root.get_children():
 		b.queue_free()
 	current = null
@@ -267,10 +290,16 @@ func _screen_ready() -> bool:
 
 # นับชิ้นที่เสีย 1 ชิ้น (หลุดขอบ / ไม่ได้อยู่บนกอง) / Insurance ช่วยได้ทั้งสองแบบ
 # คืน true ถ้าจบวันแล้ว (โดนไล่ออก) ผู้เรียกต้อง return ทันที
-func _register_fail(key: String) -> bool:
+# fragile = ชิ้นที่เสียเป็นของเปราะ (ทีวี) → โดนไล่ออกทันที (Insurance ช่วยได้เหมือนกัน)
+func _register_fail(key: String, fragile := false) -> bool:
+	camera.shake(0.45)
 	if items.consume_insurance():
 		_comment("insured")   # ประกันจ่าย: ชิ้นนี้ไม่นับว่าเสีย (ยังนับเป็นชิ้นที่ใช้ไปแล้ว)
 		return false
+	screen_fx.flash(Color(0.8, 0.05, 0.05), 0.3)
+	if fragile:
+		_end_day(false, "fragile")
+		return true
 	failed_attempts += 1
 	update_ui()
 	if failed_attempts >= GameData.MAX_FAILS:
@@ -295,7 +324,7 @@ func _check_collapse() -> bool:
 		if blk.rests_on_ground(ground_top):
 			blk.queue_free()   # ลบออกจากฉากเหมือนชิ้นที่หลุดขอบ
 			removed = true
-			if _register_fail("collapse"):
+			if _register_fail("collapse", blk.fragile):
 				return true
 	if removed:
 		recalc_tower_top()   # ยอดกองลดลงตามที่ล้ม
@@ -339,6 +368,10 @@ func _make_current(pos: Vector3) -> void:
 	current = Block.spawn(bag.next())
 	current.position = pos
 	blocks_root.add_child(current)
+	current.hit_hard.connect(_on_hit_hard.bind(current))
+	if current.fragile and not _fragile_said:
+		_fragile_said = true
+		_comment("fragile", true)
 
 
 # Item: Swap Bag — เปลี่ยนชิ้นที่ถือเป็นชิ้นอื่น (ไม่นับเป็นชิ้นที่ใช้เพิ่ม) / คืนชิ้นเดิมกลับถุง
@@ -350,6 +383,12 @@ func swap_current() -> bool:
 	old.queue_free()
 	_make_current(old.position)
 	return true
+
+
+# ชิ้นกระแทกแรง: สั่นจอตามแรง + ฝุ่นฟุ้งที่จุดชน
+func _on_hit_hard(impact: float, blk: Block) -> void:
+	camera.shake(clampf(impact / 40.0, 0.12, 0.5))
+	Effects.puff(self, blk.global_position + Vector3(0, -0.3, 0))
 
 
 # คืนเวลาเป็นปกติ + ล้างผลกาแฟ (เรียกเมื่อชิ้นนิ่ง / จบวัน / ชิ้นหลุด)
@@ -402,9 +441,10 @@ func _comment_on_progress() -> void:
 		_comment("near")
 
 
-func _comment(key: String) -> void:
+# force = ข้าม cooldown (ใช้กับคำเตือนสำคัญ เช่นทีวีเปราะ)
+func _comment(key: String, force := false) -> void:
 	var now := Time.get_ticks_msec()
-	if now < _comment_ready_at or dialogue.is_busy():
+	if dialogue.is_busy() or (now < _comment_ready_at and not force):
 		return
 	_comment_ready_at = now + int(GameData.COMMENT_COOLDOWN * 1000.0)
 	var pool: Array = Dialogue.COMMENTS[key]
@@ -426,6 +466,17 @@ func _lines(lines: Array, extra := {}) -> Array:
 	return Dialogue.fmt(lines, vars)
 
 
+# บทพูดต้นวัน: DAY_INTRO + คำอธิบายตัวปรับของวัน + ขยะพิเศษที่เริ่มมีวันนี้
+func _intro_lines() -> Array:
+	var lines: Array = Dialogue.DAY_INTRO[day].duplicate()
+	for m in GameData.DAYS[day - 1].get("modifiers", []):
+		lines.append_array(Dialogue.MODIFIER_INTRO.get(m, []))
+	for kind in GameData.KIND_FIRST_DAY:
+		if GameData.KIND_FIRST_DAY[kind] == day:
+			lines.append_array(Dialogue.KIND_INTRO.get(kind, []))
+	return lines
+
+
 # ส่งสถานะ item ไปแถบ UI (ข้ามเองถ้าไม่มีอะไรเปลี่ยน)
 func _refresh_items() -> void:
 	var playing := state == State.HOLDING or state == State.WAITING
@@ -438,6 +489,14 @@ func _refresh_items() -> void:
 		parts.append("COFFEE: SLOW-MO" if state == State.WAITING else "COFFEE READY")
 	if items.insurance > 0:
 		parts.append("INSURED x%d" % items.insurance)
+	var weather := modifiers.status_text(camera.yaw)
+	if weather != "":
+		parts.append(weather)
+	if state == State.HOLDING and current != null:
+		if current.fragile:
+			parts.append("FRAGILE!")
+		elif current.slippery:
+			parts.append("SLIPPERY")
 
 	var next_text := ""
 	if items.clipboard:
@@ -454,3 +513,6 @@ func update_ui() -> void:
 		day, GameData.DAYS.size(), score, tower_top, quota_height,
 		failed_attempts, GameData.MAX_FAILS, pieces_used, max_pieces
 	]
+	var today := modifiers.label_text()
+	if today != "":
+		score_label.text += "\nTODAY: " + today

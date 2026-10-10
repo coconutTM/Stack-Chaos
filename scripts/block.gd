@@ -2,9 +2,9 @@ class_name Block
 extends RigidBody3D
 
 # ชนิดของบล็อก ⇄ ชื่อ scene ใน scenes/blocks/ (ดู Kind.SCENES)
-enum Kind { CRATE, PLANK, FRIDGE, BARREL, TIRE, SQUARE, CYLINDER }
-const KIND_COUNT := 7
-const KIND_NAMES := ["CRATE", "PLANK", "FRIDGE", "BARREL", "TIRE", "SQUARE", "PIPE"]   # เรียงตาม Kind (ใช้โชว์ใน UI)
+enum Kind { CRATE, PLANK, FRIDGE, BARREL, TIRE, SQUARE, CYLINDER, OIL_BARREL, TV, STEEL_CRATE }
+const KIND_COUNT := 10
+const KIND_NAMES := ["CRATE", "PLANK", "FRIDGE", "BARREL", "TIRE", "SQUARE", "PIPE", "OIL", "TV", "STEEL"]   # เรียงตาม Kind (ใช้โชว์ใน UI)
 
 # ความหนืดที่ทำให้บล็อกที่ชิดกัน "ติด" กันเล็กน้อยคล้ายสไลม์ (หน่วง relative velocity
 # ของคู่ที่สัมผัสกันอยู่ ไม่ใช่แรงดึงดูดข้ามที่ว่าง) ยิ่งค่าสูง ยิ่งหนืด/กองง่ายขึ้น
@@ -22,14 +22,26 @@ const SCENES := {
 	Kind.TIRE: preload("res://scenes/blocks/block_tire.tscn"),
 	Kind.SQUARE: preload("res://scenes/blocks/block_square.tscn"),
 	Kind.CYLINDER: preload("res://scenes/blocks/block_cylinder.tscn"),
+	Kind.OIL_BARREL: preload("res://scenes/blocks/block_oil_barrel.tscn"),
+	Kind.TV: preload("res://scenes/blocks/block_tv.tscn"),
+	Kind.STEEL_CRATE: preload("res://scenes/blocks/block_steel_crate.tscn"),
 }
 
+signal hit_hard(impact: float)   # ชนแรง (impact = ความเร็ว x รากของมวล) ไว้สั่นจอ/ฝุ่น
+
+const HIT_IMPACT := 10.0   # impact เกินนี้ถึงส่งสัญญาณ (ลังไม้ตกปกติ ≈ 7, ตู้เย็น ≈ 13, ลังเหล็ก ≈ 17)
+const HIT_COOLDOWN := 0.3
+
+@export var fragile := false    # เปราะ: เสียชิ้นนี้ (หลุดขอบ/ตกพื้น/กองล้ม) = โดนไล่ออกทันที (ตั้งใน .tscn)
+@export var slippery := false   # ลื่น (ใช้แสดงคำเตือน ค่าความลื่นจริงอยู่ที่ physics material ใน .tscn)
 var kind := 0           # ชนิดของบล็อก (Kind) ตั้งโดย spawn()
 var taped := false      # โดน Duct Tape ติดตายกับกองแล้ว
 var weighted := false   # โดน Counterweight (มวล x3) แล้ว
 var released := false   # ถูกปล่อยลงมาแล้วหรือยัง
 var settled := false    # นิ่งแล้วหรือยัง
 var _still_time := 0.0
+var _prev_speed := 0.0
+var _hit_cd := 0.0
 var _mesh: MeshInstance3D
 
 
@@ -42,7 +54,11 @@ static func spawn(which: int) -> Block:
 
 func _ready() -> void:
 	_mesh = get_node("MeshInstance3D")
-	_mesh.material_override = Psx.from_standard(_mesh.material_override)   # สีเดิมจาก scene แต่ใช้ shader PS1
+	# สีเดิมจาก scene แต่ใช้ shader PS1 (รวมชิ้นส่วนเสริม เช่น จอทีวี)
+	for child in get_children():
+		var mi := child as MeshInstance3D
+		if mi:
+			mi.material_override = Psx.from_standard(mi.material_override)
 
 	# ตอนแรกให้ลอยค้างไว้ ให้ผู้เล่นเลื่อนด้วยเมาส์
 	continuous_cd = true
@@ -52,16 +68,27 @@ func _ready() -> void:
 	# เปิดรายงานการสัมผัส ใช้หา neighbor สำหรับความหนืด (ดู _apply_stickiness)
 	contact_monitor = true
 	max_contacts_reported = 6
+	body_entered.connect(_on_body_entered)
 
 
 func release() -> void:
 	released = true
 	_still_time = 0.0
-	# ตอนถูก freeze (kinematic) ความเร็วที่ค้างอยู่มาจากการขยับ/เทเลพอร์ตตำแหน่ง ไม่ใช่ความเร็วจริง
-	# ถ้าไม่ล้างตอนปล่อย ชิ้นจะพุ่งทะยานเหมือนถูกยิง (เคยเจอตอนปล่อยทันทีหลัง spawn)
-	linear_velocity = Vector3.ZERO
-	angular_velocity = Vector3.ZERO
 	freeze = false  # เริ่มให้ฟิสิกส์ทำงาน
+	# ตอนถือ (kinematic) Jolt คำนวณความเร็วจากการขยับตำแหน่งของเฟรมก่อนๆ (เมาส์สะบัดแรง/เทเลพอร์ต = ความเร็วปลอมหลายสิบ-ร้อย m/s)
+	# ซึ่งบางครั้งไหลเข้ามาตอนเปลี่ยนเป็น dynamic หลังจากที่เราล้างไปแล้ว จึงล้างซ้ำตามหลังอีก 2 physics frame
+	_clear_velocity()
+	await get_tree().physics_frame
+	_clear_velocity()
+	await get_tree().physics_frame
+	_clear_velocity()
+
+
+func _clear_velocity() -> void:
+	if is_inside_tree() and not freeze:
+		linear_velocity = Vector3.ZERO
+		angular_velocity = Vector3.ZERO
+		_prev_speed = 0.0
 
 
 # หยุดฟิสิกส์ของชิ้นนี้ค้างไว้ตรงนั้น (ใช้ตอนจบเกม ไม่ให้กลิ้งต่อ)
@@ -166,11 +193,23 @@ func footprint_radius() -> float:
 	return maxf(bb.size.x, bb.size.z) * 0.5
 
 
+# ชนแรงไหม: ใช้ความเร็ว "ก่อนชน" (เฟรมก่อนหน้า) เพราะตอนสัญญาณมาความเร็วถูกฟิสิกส์ลดไปแล้ว
+func _on_body_entered(_body: Node) -> void:
+	if not released or _hit_cd > 0.0:
+		return
+	var impact := _prev_speed * sqrt(mass)
+	if impact >= HIT_IMPACT:
+		_hit_cd = HIT_COOLDOWN
+		hit_hard.emit(impact)
+
+
 func _physics_process(delta: float) -> void:
 	if not released:
 		return
 
+	_hit_cd = maxf(0.0, _hit_cd - delta)
 	_apply_stickiness(delta)
+	_prev_speed = linear_velocity.length()
 
 	if settled:
 		return

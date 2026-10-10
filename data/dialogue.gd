@@ -38,6 +38,20 @@ const DAY_INTRO := {
 	],
 }
 
+# ตัวปรับของวัน (ต่อท้าย DAY_INTRO ของวันที่มีตัวปรับนั้น)
+const MODIFIER_INTRO := {
+	"wind": ["Wind today. It comes in gusts. Watch the warning on the screen."],
+	"rain": ["Rain. Everything's slick today. Slower hands."],
+	"shake": ["The ground shakes from time to time. Hold your pile together."],
+}
+
+# ขยะพิเศษ (ต่อท้าย DAY_INTRO ในวันแรกที่ชนิดนั้นเริ่มมี)
+const KIND_INTRO := {
+	Block.Kind.OIL_BARREL: ["New arrivals: oil barrels. They're slick. They slide."],
+	Block.Kind.STEEL_CRATE: ["Steel crates too. Heavy. Great at the bottom. Terrible if you drop one."],
+	Block.Kind.TV: ["Some TVs in the mix. Fragile. Lose one and you're fired. No exceptions."],
+}
+
 # แจก item ต้นวัน (หลัง DAY_INTRO) — วันที่ 1 มีสอนใช้ / {items} = ชื่อ item ที่ได้
 const ITEM_GIVE_FIRST := [
 	"Here. Two tools of the trade: {items}.",
@@ -66,6 +80,11 @@ const FIRED_FAILS := [
 	"Trash belongs on the pile. Not in the pit. Not on the floor.",
 	"You're fired.",
 ]
+const FIRED_FRAGILE := [
+	"You broke it.",
+	"That was company property.",
+	"You're fired.",
+]
 const FIRED_PIECES := [
 	"Out of trash. Only {height} meters.",
 	"The quota was {quota}.",
@@ -88,6 +107,7 @@ const COMMENTS := {
 	"off_stack": ["That's the floor, not the pile.", "Trash on the floor? Really?", "Land it on the stack."],
 	"fail": ["There goes another one.", "Watch the edge.", "Was that on purpose?"],
 	"collapse": ["The whole pile just moved.", "Hm. It's falling apart.", "Is that what you call stacking?", "Everything that fell counts. Everything."],
+	"fragile": ["Careful with that one. Fragile.", "That is a TV. Do not drop it."],
 	"insured": ["Covered. This time.", "The company pays for that one. Once."],
 	"near": ["Almost there.", "A little more.", "Don't blow it now."],
 }

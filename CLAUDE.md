@@ -26,7 +26,7 @@
 - เกมอ้างอิง: Super Stacker 2, Tower Bloxx, Stack
 
 > **สถานะ (หลัง Phase 2):** มีเครน + กล้อง 360°, ระบบ 5 วัน/โควต้า, boss พูดแบบพิมพ์ทีละตัว (เงาร่าง + ตาเรืองแสง),
-> หน้า title / โดนไล่ออก / จบเกม / tutorial วันที่ 1 / สุ่มขยะแบบ bag / item 6 ชนิดแบบ Buckshot Roulette / ลุค PS1 — **ยังไม่มี** เสียง / ดู [Roadmap](#8-roadmap)
+> หน้า title / โดนไล่ออก / จบเกม / tutorial วันที่ 1 / สุ่มขยะแบบ bag / item 6 ชนิดแบบ Buckshot Roulette / ลุค PS1 / ตัวปรับของวัน (ลม ฝน แผ่นดินไหว) / ขยะพิเศษ / สั่นจอ — **ยังไม่มี** เสียง / ดู [Roadmap](#8-roadmap)
 
 ---
 
@@ -132,6 +132,21 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 **สุ่มขยะ:** `scripts/piece_bag.gd` (`PieceBag`) — ถุงที่ใส่ทุก `Block.Kind` อย่างละชิ้น สลับแล้วหยิบ หมดค่อยเติม
 (ชิ้นแรกของถุงใหม่ไม่ซ้ำชิ้นสุดท้ายของถุงเก่า)
 
+**ตัวปรับของวัน + ขยะพิเศษ (Phase 5):**
+- `GameData.DAYS[i].modifiers` (วัน 3 = `wind`, 4 = `rain`, 5 = `wind`+`shake`) / ค่าจูนอยู่ใน `GameData.MODIFIERS`
+  `scripts/day_modifiers.gd` (`DayModifiers`) — `start(mods)`/`stop()` ตอนต้น/จบวัน, `running` (เปิดเฉพาะ HOLDING/WAITING),
+  `status_text(yaw)` ข้อความเตือนโชว์ในแถบสถานะเหนือแถบ item
+  - **wind**: IDLE → WARN (เตือนพร้อมนับถอยหลังและลูกศรทิศตามมุมกล้อง) → ACTIVE (ออกแรงคงที่ `force` N ใส่ทุกชิ้นที่ปล่อยแล้ว) / ชิ้นเบาโดนหนักกว่า
+  - **rain**: ลด `friction` ของ `resources/block_physics.tres` (ใช้ร่วมกันทั้งเกม **ต้องคืนค่าเสมอ** → `stop()` ทำให้) + ฝนเป็น `CPUParticles3D`
+  - **shake**: ออกแรงแนวราบแกว่งเร็ว x มวล ทุกชิ้นได้ความเร่งเท่ากัน + จอสั่น (`OrbitCamera.rumble`)
+- `GameData.KIND_FIRST_DAY` = วันแรกที่ขยะพิเศษเริ่มอยู่ในถุง (`OIL_BARREL`/`STEEL_CRATE` วัน 2, `TV` วัน 3) / `GameData.kinds_for_day(day)`
+  ใช้สร้าง `PieceBag` ใหม่ทุกวัน / `Dialogue.MODIFIER_INTRO` และ `Dialogue.KIND_INTRO` ถูกต่อท้ายบทต้นวันอัตโนมัติ
+- **ทีวีเปราะ (`Block.fragile`)**: เสียชิ้นนี้แบบไหนก็ได้ (หลุดขอบ / ตกพื้น / กองล้ม) → `_register_fail(key, true)` →
+  `_end_day(false, "fragile")` โดนไล่ออกทันที (Insurance ช่วยได้) / ขึ้น `FRAGILE!` ในแถบสถานะตอนถืออยู่
+- **สั่นจอ/เอฟเฟกต์**: `OrbitCamera.shake()/rumble()` (trauma → `h_offset`/`v_offset`), `ScreenFx.flash()` (แฟลชแดงตอนเสียชิ้น),
+  `Effects.puff()` (ฝุ่น) / ชิ้นชนแรง = สัญญาณ `Block.hit_hard(impact)` เมื่อ `ความเร็วก่อนชน x √มวล ≥ HIT_IMPACT (10)`
+  (ลังไม้ ≈ 7 ไม่สั่น, ตู้เย็น ≈ 13, ลังเหล็ก ≈ 17)
+
 **Item (Phase 3):** boss แจก `ItemData.GIVE_PER_DAY` (2) ชิ้นหลังบทต้นวัน เก็บได้ `MAX_SLOTS` (6) ช่อง ล้นถูกทิ้ง
 (คลังค้างข้ามวัน รีเซ็ตเมื่อเริ่มรอบใหม่) / ใช้ได้เฉพาะตอน `HOLDING`
 - `data/items.gd` (`ItemData`) — ข้อมูล item (ชื่อ, ชื่อสั้นบนปุ่ม, `weight` ความน่าจะเป็น, คำอธิบาย, ข้อความตอนใช้ไม่ได้)
@@ -166,6 +181,9 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 | `TIRE` | `block_tire.tscn` | Cylinder r `0.7` h `0.35` | `1.0` | `0.4` / `1.8` |
 | `SQUARE` | `block_square.tscn` | Box `0.9×0.9×0.9` | `2.0` | `0.3` / `0.6` |
 | `CYLINDER` | `block_cylinder.tscn` | Cylinder r `0.45` h `1.6` | `2.0` | `0.4` / `1.8` |
+| `OIL_BARREL` | `block_oil_barrel.tscn` | Cylinder r `0.5` h `1.1` (ลื่น: friction `0.1` จาก `block_physics_slippery.tres`, `slippery = true`) | `2.5` | `0.4` / `1.8` |
+| `TV` | `block_tv.tscn` | Box `1.1×0.85×0.9` + จอเรืองแสง (**เปราะ** `fragile = true`) | `2.0` | `0.3` / `0.6` |
+| `STEEL_CRATE` | `block_steel_crate.tscn` | Box `1.3×1.1×1.3` (หนัก) | `9.0` | `0.3` / `0.6` |
 
 Cylinder blocks (`BARREL`, `TIRE`) carry a much higher `angular_damp` (`1.8` vs `0.6`) because
 they **roll** — without strong damping a tipped barrel/tire keeps rolling almost indefinitely
@@ -292,6 +310,9 @@ Main (Node3D)                ← scripts/main.gd
 
 ## 7. Gotchas
 
+0a. **ห้ามเชื่อ velocity ของบล็อกที่เพิ่งปล่อยจากการถือ** — ตอนถือ (kinematic) Jolt คำนวณความเร็วจากการขยับตำแหน่ง ถ้าปล่อยทันที
+   (เมาส์สะบัดหรือเทเลพอร์ต) ชิ้นจะพุ่ง 70–160 m/s `Block.release()` จึงล้างความเร็วซ้ำ 3 ครั้ง (ทันที + 2 physics frame)
+   / ตั้งตำแหน่งชิ้นใหม่ก่อน `add_child` เสมอ
 0. **บอดี้ที่นิ่งแล้วจะ "หลับ" (sleep) และ `get_colliding_bodies()` คืนว่าง** — อย่าใช้ contact ตรวจว่าชิ้นที่นิ่งแล้ว
    แตะอะไร ให้ใช้เรขาคณิต (`rests_on_ground()`) หรือปลุก (`sleeping = false`) แล้วรอ physics frame ก่อน (`weld()` ทำแบบนี้)
 
@@ -332,5 +353,6 @@ Main (Node3D)                ← scripts/main.gd
 4. [x] Phase 2: ระบบ 5 วัน/โควต้า + boss dialogue + tutorial + title/fired/ending + bag (รอทดสอบ)
 5. [x] Phase 3: item 6 ชนิดแบบ Buckshot Roulette (รอทดสอบ)
 6. [x] Phase 4: PS1 look (ฉากมืด, SpotLight กะพริบ, fog, PSX shader, โรงขยะ) — รอเช็ค FPS บนเว็บจริง (กด F3)
-7. [ ] Phase 5: day modifier + ขยะพิเศษ / Phase 6: เสียง, polish UI, ฟอนต์
-8. [ ] Phase 7: อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ + README บน GitHub
+7. [x] Phase 5: ตัวปรับของวัน (ลม/ฝน/แผ่นดินไหว) + ขยะพิเศษ (น้ำมัน/ทีวีเปราะ/ลังเหล็ก) + สั่นจอ (รอทดสอบ)
+8. [ ] Phase 6: เสียง, polish UI, ฟอนต์
+9. [ ] Phase 7: อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ + README บน GitHub

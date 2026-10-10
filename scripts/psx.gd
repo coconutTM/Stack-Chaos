@@ -28,4 +28,6 @@ static func from_standard(m: Material) -> Material:
 	var std := m as StandardMaterial3D
 	if std == null:
 		return m
+	if std.emission_enabled:
+		return material(std.albedo_color, std.emission, std.emission_energy_multiplier)
 	return material(std.albedo_color)
