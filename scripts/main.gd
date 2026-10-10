@@ -27,6 +27,7 @@ var bag := PieceBag.new()
 var state := State.TITLE
 var current: Block
 var last_settled: Block     # ชิ้นล่าสุดที่นิ่ง (เป้าหมายของ Duct Tape)
+var stack_base: Block       # ฐานของกอง = ชิ้นเดียวที่อนุญาตให้นอนบนพื้น (ชิ้นแรกที่นิ่งของกอง)
 var day := 1
 var quota_height := 0.0
 var max_pieces := 0
@@ -96,6 +97,9 @@ func _physics_process(delta: float) -> void:
 			_advance_or_end()
 			return
 
+	if _check_collapse():
+		return
+
 	# รอให้บล็อกที่ปล่อยไปนิ่งก่อน แล้วค่อยให้ชิ้นถัดไป
 	if state == State.WAITING:
 		wait_time += delta
@@ -108,6 +112,8 @@ func _physics_process(delta: float) -> void:
 					return
 				_advance_or_end()
 				return
+			if not _has_settled_piece(current):
+				stack_base = current   # ยังไม่มีกอง = ชิ้นนี้คือฐาน (ได้รับการยกเว้นเรื่องนอนบนพื้น)
 			current.settled = true
 			last_settled = current
 			_reset_time()
@@ -177,6 +183,7 @@ func _start_day() -> void:
 		b.queue_free()
 	current = null
 	last_settled = null
+	stack_base = null
 	_reset_time()
 	items.reset_day()
 	tower_top = 0.0
@@ -268,6 +275,28 @@ func _register_fail(key: String) -> bool:
 	return false
 
 
+# กองล้ม: ชิ้นเก่าที่เคยนิ่งบนกองแต่ตอนนี้ไปนอนพื้น (ที่ไม่ใช่ฐาน) = เสียชิ้นนั้น นับทีละชิ้น
+# (ชิ้นที่ล้มตกขอบไปเลยถูกนับโดยลูป KILL_Y อยู่แล้ว) / คืน true ถ้าจบวันแล้ว
+func _check_collapse() -> bool:
+	if stack_base != null and not is_instance_valid(stack_base):
+		stack_base = null   # ฐานหลุดขอบไปแล้ว
+	var ground_top := ground.position.y + ground.size.y * 0.5
+	var removed := false
+	for b in blocks_root.get_children():
+		var blk := b as Block
+		if blk == null or blk == current or blk == stack_base or not blk.settled or blk.is_queued_for_deletion():
+			continue
+		if blk.rests_on_ground(ground_top):
+			blk.queue_free()   # ลบออกจากฉากเหมือนชิ้นที่หลุดขอบ
+			removed = true
+			if _register_fail("collapse"):
+				return true
+	if removed:
+		recalc_tower_top()   # ยอดกองลดลงตามที่ล้ม
+		update_ui()
+	return false
+
+
 # ชิ้นที่เพิ่งนิ่งแตะพื้นอยู่ ทั้งที่มีกองอยู่แล้ว (มีชิ้นอื่นนิ่งอยู่) = ไม่ได้วางบนกอง
 # ชิ้นแรกของวัน (ฐาน) ได้รับการยกเว้น เพราะยังไม่มีกองให้วาง
 func _is_off_stack(blk: Block) -> bool:
@@ -343,7 +372,7 @@ func recalc_tower_top() -> void:
 	var top := 0.0
 	for b in blocks_root.get_children():
 		var blk := b as Block
-		if blk and blk.released and blk.settled:
+		if blk and blk.released and blk.settled and not blk.is_queued_for_deletion():
 			top = maxf(top, blk.top_y())
 	tower_top = top
 

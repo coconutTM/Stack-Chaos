@@ -111,11 +111,15 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 - `data/dialogue.gd` (`Dialogue`) — บทพูดทั้งหมด (`DAY_INTRO`, `DAY_PASS`, `FIRED_FAILS`, `FIRED_PIECES`,
   `ENDING`, `COMMENTS`) ตัวแปรในบท: `{day} {days} {quota} {pieces} {height} {fails} {max_fails}`
 
-**ชิ้นที่ "เสีย" (fail) มี 2 แบบ** — ทั้งคู่ผ่าน `_register_fail(key)` (นับ `failed_attempts`, Insurance ช่วยได้ทั้งสองแบบ):
+**ชิ้นที่ "เสีย" (fail) มี 3 แบบ** — ทั้งคู่ผ่าน `_register_fail(key)` (นับ `failed_attempts`, Insurance ช่วยได้ทั้งสองแบบ):
 1. **หลุดขอบ** — `global_position.y < KILL_Y`
 2. **ไม่ได้วางบนกอง** — ชิ้นที่ปล่อยแล้วนิ่ง (หรือเกิน `MAX_WAIT`) แต่ขอบล่างสุดติดระดับผิวพื้น `Block.rests_on_ground()`
    ทั้งที่มีชิ้นอื่นนิ่งอยู่แล้ว (`_is_off_stack()`) → `queue_free()` ไม่นับ `score` / **ชิ้นแรกของวัน (ฐาน) ยกเว้น**
-   เพราะยังไม่มีกอง / ตรวจเฉพาะชิ้นที่เพิ่งวาง ไม่ตรวจชิ้นเก่าที่ถูกชนตกลงพื้นทีหลัง
+   เพราะยังไม่มีกอง / ข้อ 2 ตรวจเฉพาะชิ้นที่เพิ่งวาง ส่วนชิ้นเก่าที่ถูกชนตกลงพื้นทีหลังถูกตรวจโดยข้อ 3
+3. **กองล้ม** — `_check_collapse()` (เรียกทุก physics frame ตอน HOLDING/WAITING) ชิ้นเก่าที่เคย `settled` แล้วตอนนี้ไปนอนพื้น
+   และไม่ใช่ `stack_base` (ฐาน = ชิ้นแรกที่นิ่งของกอง ชิ้นเดียวที่นอนพื้นได้ ถ้าฐานหลุดขอบไปจะกลายเป็น null แล้วชิ้นแรกที่นิ่งต่อไปเป็นฐานใหม่)
+   → `queue_free()` + `_register_fail("collapse")` **ทีละชิ้น** (ล้ม 3 ชิ้น = fail 3) แล้ว `recalc_tower_top()` / ไม่ลด `score` ที่นับไปแล้ว
+   ชิ้นที่ทับกันเป็นกองเศษบนพื้นจะถูกนับตามลำดับที่ตกถึงพื้น (ชิ้นล่างโดนลบก่อน ชิ้นบนร่วงลงมาแล้วค่อยถูกนับ)
 `DropGuide.ground_is_fail` (main ตั้งเมื่อมีกองแล้ว) ทำให้วงนำทางเป็นสีแดงถ้าจุดตกคือพื้น
 
 **นับชิ้น/หลุดกอง:** `_physics_process` วน `blocks_root.get_children()` ถ้าชิ้นไหน `global_position.y < KILL_Y`
