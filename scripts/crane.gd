@@ -97,11 +97,8 @@ func update_crane(yaw: float, held: Block, hold_y: float, delta: float) -> void:
 	_hook.position = Vector3(0, -_hook_len, 0)
 
 
-func _mat(color: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = 1.0
-	return m
+func _mat(color: Color) -> Material:
+	return Psx.material(color)
 
 
 func _box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:

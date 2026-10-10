@@ -42,6 +42,7 @@ static func spawn(which: int) -> Block:
 
 func _ready() -> void:
 	_mesh = get_node("MeshInstance3D")
+	_mesh.material_override = Psx.from_standard(_mesh.material_override)   # สีเดิมจาก scene แต่ใช้ shader PS1
 
 	# ตอนแรกให้ลอยค้างไว้ ให้ผู้เล่นเลื่อนด้วยเมาส์
 	continuous_cd = true
@@ -143,23 +144,19 @@ func _add_tape_band() -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(bb.size.x + 0.06, maxf(0.1, bb.size.y * 0.14), bb.size.z + 0.06)
 	band.mesh = box
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.78, 0.78, 0.8)
-	m.roughness = 0.4
-	band.material_override = m
+	band.material_override = Psx.material(Color(0.78, 0.78, 0.8))
 	band.position = _mesh.position + bb.get_center()
 	add_child(band)
 
 
 # เปลี่ยนสี emission ของชิ้นนี้ (copy material ก่อน เพราะ material ใน scene แชร์กันทุก instance)
 func _glow(color: Color) -> void:
-	var m := _mesh.material_override as StandardMaterial3D
+	var m := _mesh.material_override as ShaderMaterial
 	if m == null:
 		return
 	m = m.duplicate()
-	m.emission_enabled = true
-	m.emission = color
-	m.emission_energy_multiplier = 0.7
+	m.set_shader_parameter("emission_color", color)
+	m.set_shader_parameter("emission_energy", 0.7)
 	_mesh.material_override = m
 
 

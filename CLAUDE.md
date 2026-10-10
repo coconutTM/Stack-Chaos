@@ -26,7 +26,7 @@
 - เกมอ้างอิง: Super Stacker 2, Tower Bloxx, Stack
 
 > **สถานะ (หลัง Phase 2):** มีเครน + กล้อง 360°, ระบบ 5 วัน/โควต้า, boss พูดแบบพิมพ์ทีละตัว (เงาร่าง + ตาเรืองแสง),
-> หน้า title / โดนไล่ออก / จบเกม / tutorial วันที่ 1 / สุ่มขยะแบบ bag / item 6 ชนิดแบบ Buckshot Roulette — **ยังไม่มี** PS1 look, เสียง / ดู [Roadmap](#8-roadmap)
+> หน้า title / โดนไล่ออก / จบเกม / tutorial วันที่ 1 / สุ่มขยะแบบ bag / item 6 ชนิดแบบ Buckshot Roulette / ลุค PS1 — **ยังไม่มี** เสียง / ดู [Roadmap](#8-roadmap)
 
 ---
 
@@ -266,18 +266,27 @@ Main (Node3D)                ← scripts/main.gd
 
 ---
 
-## 6. Art direction (ทำหลัง prototype เล่นได้แล้ว — ยังไม่เริ่ม)
+## 6. Art direction — ลุค PS1 (ทำแล้วใน Phase 4)
 
-เป้าหมาย: **สไตล์ PS1 มืดๆ แบบ Buckshot Roulette**
+สไตล์ PS1 มืดๆ แบบ Buckshot Roulette / ทั้งหมดรันบน `gl_compatibility` และเว็บ:
 
-- ฉากมืด พื้นหลังดำ ambient ต่ำ มี `SpotLight3D` ดวงเดียวส่องกองขยะ
-- fog + ไฟกะพริบ (สุ่ม `light_energy`)
-- PSX shader (vertex jitter, dithering, ลดสี) จาก godotshaders.com
-  → **ต้องเช็คว่ารองรับ Compatibility renderer** ก่อนเอามาใช้
-- Viewport ความละเอียดต่ำ + nearest filter มีอยู่แล้ว (ดูหัวข้อ 2)
+- `scripts/ps1_look.gd` (`Ps1Look`) — รวมลุคไว้ที่เดียว (main.gd สร้าง): ตั้ง material พื้นแท่น + สร้าง `Junkyard`, `Lighting`, `PostFx`
+  ลบ node นี้ออกจาก `main.gd` = ได้ฉากเรียบกลับมา
+- `Environment` ใน `main.tscn`: พื้นหลังดำ, ambient ต่ำสีน้ำเงินเทา, fog (`fog_density 0.022`) / **ไม่มี DirectionalLight แล้ว**
+- `scripts/lighting.gd` (`Lighting`) — SpotLight3D ดวงเดียวเหนือกอง ตามความสูงกอง + กะพริบ (สั่นเบาๆ + ไฟวูบสุ่มทุก 4–10 วิ)
+  **ไม่เปิด shadow**: vertex snapping ทำให้เงาเพี้ยน และประหยัดบนเว็บ
+- `shaders/psx.gdshader` — spatial shader เขียนเอง: vertex snapping (ปัดตำแหน่งเป็นกริด NDC `snap_grid`) + แสงแบบเป็นขั้น
+  (`light_steps`) / `scripts/psx.gd` (`Psx.material(color, emission)`) สร้าง+cache material ตามสี
+  **ทุก mesh ในเกมต้องใช้ `Psx.material()`** (บล็อกแปลงอัตโนมัติจากสีใน `.tscn` ที่ `Block._ready()` ผ่าน `Psx.from_standard()`)
+- `shaders/psx_post.gdshader` + `scripts/post_fx.gd` — โพสต์โปรเซสเต็มจอ: ลดสีเหลือ 5 บิต/ช่อง + dithering Bayer 4x4
+  ใช้ `hint_screen_texture` / อยู่ `CanvasLayer` layer 0 (ใต้ UI ทุกชั้น จึงไม่ทำให้ตัวหนังสือแตก) และ `mouse_filter = IGNORE`
+- `scripts/junkyard.gd` (`Junkyard`) — พื้นหลุมขยะ (y = -7 ต่ำกว่า `KILL_Y`), กองขยะประดับ, รั้ววงกลม, เนินขยะไกลๆ, เสาไฟ 6 ต้น
+  จาก primitive ล้วน / seed คงที่ / รวมเป็น `MultiMesh` ตามสี (draw call รวมทั้งฉาก ≈ 50)
+- `scripts/fps_overlay.gd` — กด **F3** เปิดตัวเลข FPS + draw call (ไว้เช็คบนเว็บ build) / เป็นปุ่มดีบักเท่านั้น
+- `OrbitCamera.far = 80` (ระยะวาดสั้นแบบ PS1 + fog กลืนอยู่แล้ว)
 
-ตอนนี้ `WorldEnvironment` ยังเป็น ProceduralSky สีเทาสว่าง และใช้ `DirectionalLight3D`
-→ ต้องเปลี่ยนทั้งสองอย่างเมื่อเริ่มทำลุคนี้
+ข้อควรระวัง: ไม่ใช้ texture (primitive สีเรียบ) จึงไม่ทำ affine texture warping / ถ้าเพิ่ม mesh ใหม่ที่ใช้ `StandardMaterial3D`
+จะดูไม่เข้ากับฉาก / จูนความมืดที่ `ambient_light_energy` + `fog_*` ใน `main.tscn` และ `BASE_ENERGY` ใน `lighting.gd`
 
 ---
 
@@ -322,6 +331,6 @@ Main (Node3D)                ← scripts/main.gd
 3. [x] Phase 1: เครน + กล้อง 360° + วงเงานำทาง (รอทดสอบ)
 4. [x] Phase 2: ระบบ 5 วัน/โควต้า + boss dialogue + tutorial + title/fired/ending + bag (รอทดสอบ)
 5. [x] Phase 3: item 6 ชนิดแบบ Buckshot Roulette (รอทดสอบ)
-6. [ ] Phase 4: PS1 look (แสงมืด, SpotLight, fog, PSX shader)
+6. [x] Phase 4: PS1 look (ฉากมืด, SpotLight กะพริบ, fog, PSX shader, โรงขยะ) — รอเช็ค FPS บนเว็บจริง (กด F3)
 7. [ ] Phase 5: day modifier + ขยะพิเศษ / Phase 6: เสียง, polish UI, ฟอนต์
 8. [ ] Phase 7: อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ + README บน GitHub

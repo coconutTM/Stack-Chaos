@@ -21,6 +21,7 @@ var crane: Crane
 var guide: DropGuide
 var dialogue: DialogueBox
 var item_bar: ItemBar
+var look: Ps1Look
 var items: ItemSystem
 var bag := PieceBag.new()
 
@@ -44,6 +45,9 @@ var _screen_at_msec := 0     # เวลา (ms) ที่ขึ้นหน้�
 
 
 func _ready() -> void:
+	look = Ps1Look.new()
+	look.ground = ground
+	add_child(look)
 	crane = Crane.new()
 	add_child(crane)
 	guide = DropGuide.new()
@@ -54,6 +58,7 @@ func _ready() -> void:
 	item_bar = ItemBar.new()
 	add_child(item_bar)
 	item_bar.slot_pressed.connect(items.use_slot)
+	add_child(FpsOverlay.new())
 	camera.tapped.connect(_on_camera_tapped)
 
 	score_label.add_theme_font_size_override("font_size", 11)
@@ -65,6 +70,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	# กล้องโคจร/ตามความสูงกองเอง (orbit_camera.gd) / ที่นี่แค่บอกความสูงเป้าหมาย
 	camera.target_y = tower_top
+	look.target_y = tower_top
 
 	var holding := state == State.HOLDING
 	# ระหว่างลากหมุนกล้องไม่ต้องให้ชิ้นที่ถือวิ่งตามเมาส์

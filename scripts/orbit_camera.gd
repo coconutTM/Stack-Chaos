@@ -22,6 +22,7 @@ var _drag_dist := 0.0
 
 
 func _ready() -> void:
+	far = 80.0   # ระยะวาดสั้นแบบ PS1 (ไกลกว่านี้ถูก fog กลืนอยู่แล้ว)
 	_update_transform()
 
 

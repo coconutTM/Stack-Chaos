@@ -4,23 +4,18 @@
 [ext_resource type="PackedScene" uid="uid://bv5gyw3nwe1hg" path="res://scenes/ui.tscn" id="2_0wfyh"]
 [ext_resource type="Script" uid="uid://cebm5j1tuy0vn" path="res://scripts/orbit_camera.gd" id="3_orbit"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_7dm0k"]
-sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
-ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
-
-[sub_resource type="Sky" id="Sky_ig7tw"]
-sky_material = SubResource("ProceduralSkyMaterial_7dm0k")
-
 [sub_resource type="Environment" id="Environment_0xm2m"]
-background_mode = 2
-sky = SubResource("Sky_ig7tw")
+background_mode = 1
+background_color = Color(0.012, 0.012, 0.018, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.3, 0.32, 0.42, 1)
+ambient_light_energy = 1.1
+fog_enabled = true
+fog_light_color = Color(0.05, 0.055, 0.075, 1)
+fog_density = 0.022
 
 [node name="Main" type="Node3D" unique_id=1896881104]
 script = ExtResource("1_o5qli")
-
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=273922889]
-transform = Transform3D(0.9977382, -0.066467665, -0.010025707, 0.0076917047, -0.035278097, 0.999348, -0.06677799, -0.99716467, -0.034687057, 0, 11.1, 0)
-shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=164863699]
 environment = SubResource("Environment_0xm2m")
