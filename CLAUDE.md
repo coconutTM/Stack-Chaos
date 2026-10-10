@@ -25,14 +25,8 @@
 - โครงสร้างเกมที่วางไว้: แต่ละ **"วัน"** boss ตั้งโควต้าความสูง → ถึงก็ผ่าน / ไม่ถึงหรือกองล้ม = โดนไล่ออก
 - เกมอ้างอิง: Super Stacker 2, Tower Bloxx, Stack
 
-> **(อัปเดต Phase 0 แล้ว: มีบล็อก 7 ชนิด, จบเกมแล้วฟิสิกส์หยุด, มี export preset เว็บ)**
->
-> **ตอนนี้ยังเป็น prototype แกนเกมเท่านั้น** — ยังไม่มีระบบวัน/โควต้า, ยังไม่มี boss, ยังไม่มี dialogue,
-> ยังไม่ทำ PS1 look, ยังไม่มีเสียง / ดู [Roadmap](#8-roadmap)
->
-> **ตอนนี้มี win condition แล้ว** (เวอร์ชันง่าย ยังไม่ใช่ระบบวัน/โควต้าของ boss เต็มรูปแบบ):
-> กองให้สูงถึง `WIN_HEIGHT = 7.5m` ให้ได้ก่อนของหมด (`MAX_PIECES = 10` ชิ้น) — ดูหัวข้อ 4
-> ระบบวัน/โควต้าของ boss (ข้อ 3 ใน Roadmap) จะมาแทนที่เงื่อนไขชนะแบบตายตัวนี้ในอนาคต
+> **สถานะ (หลัง Phase 2):** มีเครน + กล้อง 360°, ระบบ 5 วัน/โควต้า, boss พูดแบบพิมพ์ทีละตัว (เงาร่าง + ตาเรืองแสง),
+> หน้า title / โดนไล่ออก / จบเกม / tutorial วันที่ 1 / สุ่มขยะแบบ bag — **ยังไม่มี** item, PS1 look, เสียง / ดู [Roadmap](#8-roadmap)
 
 ---
 
@@ -77,56 +71,61 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 
 ### `scripts/main.gd` — `Node3D`, ติดอยู่กับ `scenes/main.tscn`
 
-คุมเกมทั้งเกมด้วย state machine 3 สถานะ `State { HOLDING, WAITING, GAME_OVER }`:
+ตัวคุมเกมด้วย state machine `State { TITLE, DIALOGUE, HOLDING, WAITING, FIRED, ENDING }`:
 
+- **`TITLE`** — หน้าแรก (ใช้ `game_over_label` โชว์ข้อความ) / คลิกซ้าย → `_start_run()` (วันที่ 1)
+- **`DIALOGUE`** — boss กำลังพูดแบบบล็อก (ต้นวัน / ท้ายวัน / ฉากจบ) ฟิสิกส์ใน `_physics_process` หยุดตรวจ
 - **`HOLDING`** — `move_held_block()` ยิง ray จากเมาส์ลงบน `Plane(Vector3.UP, hold_y)` แล้ว clamp
-  ตำแหน่งไว้ใน `±BOUND` / ตอนนี้บล็อก `freeze = true` แบบ `FREEZE_MODE_KINEMATIC`
+  ตำแหน่งไว้ใน `±BOUND` / บล็อก `freeze = true` แบบ `FREEZE_MODE_KINEMATIC`
 - **`WAITING`** — เข้าเมื่อคลิกซ้าย (`current.release()`) / รอจน `current.settled` หรือเกิน `MAX_WAIT`
-  แล้วค่อย `score += 1` → `recalc_tower_top()` → เช็คชนะ → `_advance_or_end()`
-- **`GAME_OVER`** — ใช้สถานะเดียวกันทั้งแพ้และชนะ (ดูเงื่อนไขแพ้/ชนะด้านล่าง) ต่างกันแค่ข้อความใน
-  `game_over_label` (ดู `won: bool`) / คลิกซ้ายเพื่อ `reload_current_scene()` ทั้งสองกรณี
+  แล้วค่อย `score += 1` → `recalc_tower_top()` → เช็คถึงโควต้า → `_comment_on_progress()` → `_advance_or_end()`
+- **`FIRED`** — โดนไล่ออก (หลุดครบ `GameData.MAX_FAILS` หรือใช้ชิ้นครบแล้วไม่ถึงโควต้า) คลิก → กลับวันที่ 1
+- **`ENDING`** — ผ่านวันสุดท้ายแล้ว คลิก → กลับ `TITLE`
 
-ฟังก์ชันหลัก: `spawn_block()`, `_advance_or_end()`, `move_held_block()`, `recalc_tower_top()`,
-`update_ui()`, `win()`, `game_over()`
+**วัน/โควต้า:** `_start_day()` อ่านโควต้าจาก `GameData.DAYS[day - 1]` (ล้างกอง, รีเซ็ตตัวนับ, boss พูดต้นวัน
+แล้ว `spawn_block()`) / `_end_day(passed, reason)` freeze ทุกบล็อก → boss พูด → วันถัดไป / หน้า FIRED / ฉากจบ
+ใช้ `await dialogue.say(...)` — คลิกที่ปิดบทพูดบรรทัดสุดท้ายถูก `set_input_as_handled()` โดย `DialogueBox`
+(child ของ Main จึงได้รับก่อน) เพื่อไม่ให้ `main.gd` เห็นซ้ำแล้วปล่อยบล็อกทันที
 
-ค่าปรับความยาก/ฟีลอยู่เป็น `const` บนสุดของไฟล์ — แก้ที่นี่:
+**boss คอมเมนต์ระหว่างวัน** (ไม่บล็อกเกม): `_comment(key)` — หมวด `fail`, `collapse` (ยอดกองต่ำลงเกิน
+`GameData.COLLAPSE_DROP` จาก `best_height`), `near` (ห่างโควต้าไม่เกิน `GameData.NEAR_QUOTA`), และ
+`tutorial_*` (เฉพาะวันที่มี `"tutorial": true`) / มี cooldown `GameData.COMMENT_COOLDOWN`
+
+ฟังก์ชันหลัก: `_start_run()`, `_start_day()`, `_end_day()`, `spawn_block()`, `_advance_or_end()`,
+`move_held_block()`, `recalc_tower_top()`, `update_ui()`, `_lines()` (แทนตัวแปร `{quota}` ในบทพูด)
+
+ค่าฟีลอยู่เป็น `const` บนสุดของ `main.gd`:
 
 | Const | ค่า | ความหมาย |
 | --- | --- | --- |
-| `HOLD_GAP` | `1.8` | บล็อกที่ถือลอยเหนือยอดกองกี่เมตร (ลดจาก `3.5` เดิม — ตกจากที่สูงเกินไปทำให้กองยาก) |
-| `BOUND` | `3.0` | ขอบเขตที่เลื่อนบล็อกได้ (X / Z) — ตั้งใจให้ใกล้เคียงขนาดพื้น (ดูหัวข้อ Scenes) |
-| `KILL_Y` | `-4.0` | ตกต่ำกว่านี้ = ชิ้นนั้น "หลุดกอง" 1 ครั้ง (ไม่ใช่แพ้ทันทีอีกแล้ว ดูด้านล่าง) |
+| `HOLD_GAP` | `1.8` | บล็อกที่ถือลอยเหนือยอดกองกี่เมตร |
+| `BOUND` | `3.0` | ขอบเขตที่เลื่อนบล็อกได้ (X / Z) — ต้องคู่กับขนาดพื้น (ดู Gotchas ข้อ 7) |
+| `KILL_Y` | `-4.0` | ตกต่ำกว่านี้ = ชิ้นนั้น "หลุดกอง" 1 ครั้ง |
 | `MAX_WAIT` | `5.0` | รอบล็อกนิ่งนานสุดกี่วินาที |
-| `MAX_FAILS` | `3` | หลุดกองครบกี่ชิ้นแล้วแพ้ |
-| `WIN_HEIGHT` | `7.5` | กองสูงถึงเท่านี้ (เมตร) = ชนะ |
-| `RESTART_DELAY` | `0.3` | หน่วงหลังจบเกมก่อนรับคลิกเริ่มใหม่ (วินาที) |
-| `MAX_PIECES` | `10` | ของให้ใช้ทั้งหมดกี่ชิ้น (นับทุกชิ้นที่ spawn แม้จะหลุด) ใช้ครบแล้วไม่ถึง `WIN_HEIGHT` = แพ้ |
+| `RESTART_DELAY` | `0.3` | หน่วงหลังขึ้นหน้าจบก่อนรับคลิก (วินาที) |
 
-**เงื่อนไขแพ้ (`game_over()`) มี 2 ทาง — อย่างใดอย่างหนึ่งก็พอ:**
-1. หลุดกองครบ `MAX_FAILS` (`= 3`) ชิ้น
-2. ใช้ของครบ `MAX_PIECES` (`= 10`) ชิ้นแล้ว แต่ `tower_top` ยังไม่ถึง `WIN_HEIGHT`
+**ค่าที่จูนเรื่องความยาก/วัน/บท อยู่ในโฟลเดอร์ `data/`** (data-driven ไม่ต้องแตะ `main.gd`):
+- `data/game_data.gd` (`GameData`) — `DAYS` (โควต้าความสูง `height` + จำนวนชิ้น `pieces` + `tutorial`
+  ต่อวัน), `MAX_FAILS`, `COLLAPSE_DROP`, `NEAR_QUOTA`, `COMMENT_COOLDOWN`
+  ความสูงเป็นพิกัดโลก (y) พื้นอยู่ที่ y ≈ `1.2` กองสูง 3 ม. จริง ≈ `4.2`
+- `data/dialogue.gd` (`Dialogue`) — บทพูดทั้งหมด (`DAY_INTRO`, `DAY_PASS`, `FIRED_FAILS`, `FIRED_PIECES`,
+  `ENDING`, `COMMENTS`) ตัวแปรในบท: `{day} {days} {quota} {pieces} {height} {fails} {max_fails}`
 
-**เงื่อนไขชนะ (`win()`):** `tower_top >= WIN_HEIGHT` ตอนไหนก็ได้ (เช็คทุกครั้งที่ชิ้นใหม่นิ่ง ก่อนตัดสินใจ
-ว่าจะ spawn ชิ้นถัดไปหรือจบเกม) — ชนะได้แม้ใช้ไปไม่ครบ 10 ชิ้น ถ้าถึงความสูงก่อน
+**นับชิ้น/หลุดกอง:** `_physics_process` วน `blocks_root.get_children()` ถ้าชิ้นไหน `global_position.y < KILL_Y`
+จะ `queue_free()` แล้ว `failed_attempts += 1` **ไม่เว้นฐาน** / `pieces_used` เพิ่มใน `spawn_block()` รวมชิ้นที่หลุดด้วย
+(เป็น "งบ" ไม่ใช่จำนวนที่วางสำเร็จ — `score` ต่างหากคือจำนวนที่นิ่งจริง ตลอดการเล่นรอบนั้นข้ามวัน)
 
-`_physics_process` วน `blocks_root.get_children()` ทุกเฟรม ถ้าชิ้นไหน `global_position.y < KILL_Y`
-(พื้นอยู่ที่ y ≈ `1.2` กว้าง `9×9` ดูหัวข้อ Scenes — ต้องกลิ้ง/ถูกเหวี่ยงตกขอบพื้นไปก่อนแล้วค่อยร่วง
-ต่ำกว่า `-4.0`) จะ `queue_free()` ชิ้นนั้นทิ้งแล้ว `failed_attempts += 1` ทันที **ไม่เว้นฐาน** — ชิ้นแรกที่วาง
-(the "base") ก็นับเหมือนชิ้นอื่นทุกประการ ไม่มีการปักหมุดหรือยกเว้นพิเศษ ถ้าถึง `MAX_FAILS` → `game_over()`
+**กรณีพิเศษ:** ถ้าชิ้นที่หลุดคือ `current` โค้ดเรียก `_advance_or_end()` ทันทีแล้ว `return` — `current`
+ถูก `queue_free()` แล้ว ห้ามแตะ property ของมัน (เช่น `current.settled`) ต่อในเฟรมเดียวกัน
 
-`pieces_used` เพิ่มทีละ 1 ใน `spawn_block()` ทุกครั้งที่มีชิ้นใหม่เกิด **รวมถึงชิ้นที่ตกไปโดยไม่ทันนิ่งด้วย**
-— เป็น "งบ" ทั้งหมด ไม่ใช่แค่จำนวนที่วางสำเร็จ (`score` ต่างหากคือจำนวนที่นิ่ง/ได้คะแนนจริง) ก่อนจะ
-`spawn_block()` ชิ้นใหม่ทุกครั้งต้องผ่าน `_advance_or_end()` ก่อน ซึ่งเช็คว่า `pieces_used >= MAX_PIECES`
-หรือยัง ถ้าครบแล้วเรียก `game_over()` แทนการ spawn ต่อ
+**สุ่มขยะ:** `scripts/piece_bag.gd` (`PieceBag`) — ถุงที่ใส่ทุก `Block.Kind` อย่างละชิ้น สลับแล้วหยิบ หมดค่อยเติม
+(ชิ้นแรกของถุงใหม่ไม่ซ้ำชิ้นสุดท้ายของถุงเก่า)
 
-**กรณีพิเศษ:** ถ้าชิ้นที่หลุดคือ `current` (ชิ้นที่กำลังปล่อย ยังไม่ทันนิ่ง) โค้ดจะเรียก `_advance_or_end()`
-ทันทีโดยไม่นับคะแนน/ไม่รอ `MAX_WAIT` — ต้องระวังเรื่องนี้ถ้าจะแก้ loop นี้ต่อ เพราะ `current`
-ถูก `queue_free()` ไปแล้ว การแตะ property ของมันต่อในเฟรมเดียวกัน (เช่น `current.settled`) จะพังเพราะ
-instance ถูก free แล้ว — โค้ดปัจจุบัน `return` ออกจากฟังก์ชันทันทีหลัง `_advance_or_end()` เพื่อเลี่ยงปัญหานี้
+**boss UI:** `scripts/dialogue_box.gd` (`DialogueBox`, CanvasLayer) — `say(lines)` โหมดบล็อก (คลิกเพื่อข้ามพิมพ์/ไปต่อ),
+`comment(text)` โหมดไม่บล็อก, signal `blip` ไว้ผูกเสียงใน Phase 6 / สร้าง UI ด้วยโค้ดทั้งหมด
 
-กล้องตามกองขึ้นไปโดย lerp เข้าหา `tower_top + 9.0` ด้วย `1.0 - exp(-3.0 * delta)`
-ซึ่งเป็นสูตรที่ไม่ขึ้นกับ framerate — **ถ้าจะเพิ่ม smoothing ที่อื่น ใช้สูตรนี้** อย่าใช้ `lerp(a, b, delta)` ตรงๆ
-(ค่าเริ่มต้นกล้องเซ็ตในโค้ด: `position = (0, 9, 8)`, pitch `-45°`)
+กล้องตามกองด้วย `1.0 - exp(-3.0 * delta)` ซึ่งไม่ขึ้นกับ framerate — **ถ้าจะเพิ่ม smoothing ที่อื่น ใช้สูตรนี้**
+อย่าใช้ `lerp(a, b, delta)` ตรงๆ (ตอนนี้อยู่ใน `orbit_camera.gd`)
 
 ### `scripts/block.gd` — `class_name Block`, `RigidBody3D`
 
@@ -160,19 +159,20 @@ promptly instead of waiting out `MAX_WAIT`.
 (`FREEZE_MODE_KINEMATIC`, `freeze = true`) + เปิด `contact_monitor` (ดูหัวข้อ stickiness ด้านล่าง)
 — **ไม่มีการสร้าง mesh/shape/material ในโค้ดแล้ว**
 
-**Stickiness (ติดกันแบบสไลม์):** `_apply_stickiness()` วน `get_colliding_bodies()` ของตัวเอง
-ทุกเฟรม (ต้องเปิด `contact_monitor = true` + `max_contacts_reported = 6` ใน `_ready()` ไม่งั้น
-list นี้ว่างเปล่าตลอด) แล้วหน่วง **relative velocity** ระหว่างคู่ที่กำลังสัมผัสกันอยู่จริง:
-`apply_central_force((other.linear_velocity - linear_velocity) * STICK_LINEAR)` (ไถล) และ
-`apply_torque((other.angular_velocity - angular_velocity) * STICK_ANGULAR)` (โยก/หมุน)
+**Stickiness (ติดกันแบบสไลม์):** `_apply_stickiness(delta)` วน `get_colliding_bodies()` ของตัวเองทุกเฟรม
+(ต้องเปิด `contact_monitor = true` + `max_contacts_reported = 6` ใน `_ready()` ไม่งั้น list ว่างตลอด)
+แล้วหน่วง **relative velocity** ระหว่างคู่ที่สัมผัสกันอยู่จริง ด้วย **impulse ที่จำกัดสัดส่วนต่อเฟรม** (ไม่ใช่แรง
+`k * dv` ตรงๆ เพราะบล็อกเบา/โมเมนต์ความเฉื่อยต่ำอย่างไม้กระดานทำให้ integration ไม่เสถียรได้):
+`f = clamp(STICK_LINEAR * delta, 0, 0.5)` แล้ว `apply_central_impulse((v_other - v_self) * μ * f)` เมื่อ
+`μ` = reduced mass ของคู่ → โมเมนตัมรวมคงที่ และความเร็วสัมพัทธ์ลดลงสัดส่วน `f` ต่อเฟรมไม่ว่าหนักหรือเบา
+ส่วนหมุนใช้หลักเดียวกันกับ inertia ของตัวเอง และมี `STICK_PULL` ดูดเข้าหาจุดกึ่งกลางของอีกชิ้นเล็กน้อย
+(เฉพาะตอนแตะกัน) ทำให้ดูเหนียวแบบการ์ตูน
 
-นี่คือ **viscous damping ไม่ใช่แรงดึงดูด** — มีผลเฉพาะตอนสองชิ้นแตะกันจริงเท่านั้น ไม่ดึงของที่อยู่ไกล
-กันเข้ามาชนกัน และทำงานต่อแม้หลัง `settled = true` แล้ว (ชิ้นที่กองอยู่แล้วก็ควรต้านการถูกเขย่าหลุดได้
-เหมือนกัน) ค่าเริ่มต้น `STICK_LINEAR := 12.0`, `STICK_ANGULAR := 3.0`, `STICK_PULL := 6.0` (แรงดูดเข้าหากันเฉพาะตอนแตะกัน ทำให้ดูเหนียวแบบการ์ตูน) — ปรับได้ตรงนี้ถ้าอยากให้
-หนืดขึ้น/ลง (`STICK_LINEAR` สูงขึ้น = กองง่ายขึ้นแต่ของจะดู "เหนียว" มากขึ้นด้วย)
+ค่าเริ่มต้น (หน่วง = อัตราต่อวินาที): `STICK_LINEAR := 12.0`, `STICK_ANGULAR := 6.0`, `STICK_PULL := 6.0` (m/s²)
+— ยิ่งสูงยิ่งหนืด/กองง่ายขึ้น ทำงานต่อแม้หลัง `settled = true`
 
-ทั้งสองชิ้นที่แตะกันจะรันลูปนี้แยกกัน (ฝั่งละ script instance) ผลคือแรงกระทำเท่ากันแต่ตรงข้ามกัน
-โดยอัตโนมัติ (สมมาตรของ `other.v - self.v` ตรงข้ามกับอีกฝั่ง) ไม่ต้องจัดการคู่ (pairing) เอง
+**`release()` ต้องล้าง velocity:** ตอนถือ (kinematic) ความเร็วที่ Jolt เห็นมาจากการขยับ/เทเลพอร์ตตำแหน่ง
+ถ้าไม่ล้างตอนปล่อย ชิ้นจะพุ่งทะยาน (เคยเจอ ~380 m/s) / `spawn_block()` จึงตั้งตำแหน่งก่อน `add_child` ด้วย
 
 > **เพิ่มบล็อกชนิดใหม่:** สร้าง `.tscn` ใหม่ใน `scenes/blocks/` (ก๊อปจากอันที่ใกล้เคียงแล้วปรับ
 > mesh/shape/สี/mass ในตัว editor) → เพิ่มชื่อใน `Kind` → บวก `KIND_COUNT` → เพิ่ม entry ใน
@@ -223,7 +223,7 @@ Main (Node3D)                ← scripts/main.gd
 | Input | ผล |
 | --- | --- |
 | ขยับเมาส์ | เลื่อนตำแหน่งบล็อกที่ถืออยู่ |
-| คลิกซ้าย | ปล่อยบล็อก (หรือเริ่มใหม่ตอน game over) |
+| คลิกซ้าย | ปล่อยบล็อก / ข้ามการพิมพ์และไปบรรทัดถัดไปตอน boss พูด / กดต่อบนหน้า title, fired, ending |
 | คลิกขวา (สั้น ไม่ลาก) | พลิกตะแคง 90° รอบแกน Z |
 | คลิกขวาค้าง + ลาก | หมุนกล้องรอบกอง 360° (ชิ้นที่ถือจะไม่ตามเมาส์ระหว่างลาก) |
 | ลูกกลิ้งขึ้น / ลง | หมุน ±45° รอบแกน Y |
@@ -291,8 +291,8 @@ Main (Node3D)                ← scripts/main.gd
 1. [x] Prototype เล่นได้ (`main.gd` + `block.gd`)
 2. [x] Phase 0: แก้ HUD, รวมบล็อก SQUARE/CYLINDER, freeze ตอนจบเกม, export เว็บผ่านแล้ว (ยังต้องทดสอบรันบนเบราว์เซอร์/itch.io จริง)
 3. [x] Phase 1: เครน + กล้อง 360° + วงเงานำทาง (รอทดสอบ)
-4. [ ] ระบบวัน / โควต้าของ boss
-4. [ ] Boss + dialogue box (พิมพ์ทีละตัวอักษร)
-5. [ ] PS1 look (แสงมืด, SpotLight, fog, PSX shader)
-6. [ ] เสียง, polish UI, ฟอนต์
-7. [ ] อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ + README บน GitHub
+4. [x] Phase 2: ระบบ 5 วัน/โควต้า + boss dialogue + tutorial + title/fired/ending + bag (รอทดสอบ)
+5. [ ] Phase 3: item แบบ Buckshot Roulette
+6. [ ] Phase 4: PS1 look (แสงมืด, SpotLight, fog, PSX shader)
+7. [ ] Phase 5: day modifier + ขยะพิเศษ / Phase 6: เสียง, polish UI, ฟอนต์
+8. [ ] Phase 7: อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ + README บน GitHub
