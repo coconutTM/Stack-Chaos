@@ -21,10 +21,10 @@ const DAYS := [
 ]
 
 # ตัวปรับของวัน (ค่าจูน) — interval = ช่วงเวลาสุ่มระหว่างครั้ง (วินาที) / warn = เตือนก่อนกี่วินาที
-# wind: force = แรงผลัก (นิวตัน คงที่ ไม่คูณมวล ชิ้นเบาจึงโดนหนัก) / rain: friction = ค่าเสียดทานของบล็อกทั่วไปตอนฝนตก
+# wind: force = แรงผลัก (นิวตัน คงที่ ไม่คูณมวล ชิ้นเบาจึงโดนหนัก; ไม้กระดานบนพื้นเริ่มไถลที่ราว 7 N: 6.0 = ไม่ขยับ, 7.5 = ขยับ ~0.5 ม., 9.0 = ไถล ~2.7 ม.) / rain: friction = ค่าเสียดทานของบล็อกทั่วไปตอนฝนตก
 # shake: accel = ความเร่งสั่นแนวราบ (คูณมวล ทุกชิ้นสั่นเท่ากัน)
 const MODIFIERS := {
-	"wind": {"label": "WIND", "interval": Vector2(7.0, 12.0), "warn": 2.0, "duration": 1.5, "force": 9.0},
+	"wind": {"label": "WIND", "interval": Vector2(7.0, 12.0), "warn": 2.0, "duration": 1.5, "force": 7.5},
 	"rain": {"label": "RAIN", "friction": 0.35},
 	"shake": {"label": "QUAKE", "interval": Vector2(8.0, 14.0), "warn": 1.5, "duration": 2.0, "accel": 3.5},
 }
