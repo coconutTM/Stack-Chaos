@@ -10,8 +10,9 @@ static var _cache := {}
 
 
 # material แชร์ตามสี (อย่าแก้ค่าบนตัวที่ได้จากนี่ ถ้าจะแก้ให้ duplicate() ก่อน)
-static func material(color: Color, emission := Color.BLACK, emission_energy := 1.0) -> ShaderMaterial:
-	var key := [color, emission, emission_energy]
+# tex = texture สี (palette ของโมเดล .glb) คูณกับ color
+static func material(color: Color, emission := Color.BLACK, emission_energy := 1.0, tex: Texture2D = null) -> ShaderMaterial:
+	var key := [color, emission, emission_energy, tex]
 	if _cache.has(key):
 		return _cache[key]
 	var m := ShaderMaterial.new()
@@ -19,6 +20,8 @@ static func material(color: Color, emission := Color.BLACK, emission_energy := 1
 	m.set_shader_parameter("albedo", color)
 	m.set_shader_parameter("emission_color", emission)
 	m.set_shader_parameter("emission_energy", emission_energy)
+	if tex:
+		m.set_shader_parameter("albedo_tex", tex)
 	_cache[key] = m
 	return m
 

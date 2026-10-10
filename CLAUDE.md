@@ -37,9 +37,14 @@
 | Setting | ค่า | ความหมาย |
 | --- | --- | --- |
 | Renderer | `gl_compatibility` | **เพราะต้องรันบนเว็บได้** → **ไม่มี** SDFGI / Volumetric Fog / SSR / ห้ามใช้ feature ที่มีแต่ใน Forward+ |
-| Viewport | `426×240`, stretch `viewport` / `expand` | ตั้งใจให้ความละเอียดต่ำแบบ PS1/pixel-art **อย่าเพิ่มขนาด** |
+| Viewport | ขนาดอ้างอิง `426×240`, หน้าต่างเริ่มต้น `852×480` (×2), stretch `canvas_items` / `expand` / scale `integer` | UI ทุกชิ้นวางด้วยพิกัด 426×240 (**ห้ามเปลี่ยน `viewport_width/height`** ไม่งั้นตำแหน่ง UI เพี้ยนหมด) แล้วถูกขยายเป็นจำนวนเต็มเท่าแบบคม ส่วน 3D เรนเดอร์ที่ความละเอียดจริงของหน้าต่าง |
 | `default_texture_filter` | `0` (nearest) | texture ใหม่ต้องไม่ถูก filter / texture เล็ก 32–64 px |
 | 3D physics engine | **Jolt Physics** | เลือกเพราะทำให้การซ้อนของนิ่งกว่า Godot Physics เดิม |
+
+**ความละเอียด:** เปลี่ยนขนาดหน้าต่างเริ่มต้นที่ `window/size/window_width_override` / `window_height_override` / ลาย dither ของ `PostFx`
+ขยายตาม (`pixel_scale` = ความสูงจอ ÷ 240 ปัดลง) ให้หยาบเท่าเดิม / vertex snapping (`snap_grid`) เป็นพิกัด NDC ไม่ขึ้นกับความละเอียด
+/ **ย้อนกลับเป็นพิกเซลต่ำแบบเดิม:** `stretch/mode = "viewport"` + ลบ override 2 ตัว / ภาพ 3D ใหญ่ขึ้น 4 เท่า → **เช็ค FPS บนเว็บจริง (F3)**
+/ Hyprland (tiling) ไม่สนขนาดหน้าต่างที่เกมขอ → ทดสอบขนาดจริงด้วย `xvfb-run -s "-screen 0 852x480x24" godot --display-driver x11 ...`
 
 **ข้อจำกัดเรื่อง web export** (มี `export_presets.cfg` preset "Web" แล้ว — single-threaded, export ไป `build/web/`, โฟลเดอร์ `build/` ถูก gitignore):
 - ต้องเป็น **single-threaded** (ปิด Thread Support) เพื่อลง itch.io ได้ง่าย
@@ -47,8 +52,11 @@
 - **ข้อความ UI ทั้งหมดใช้ภาษาอังกฤษ** เพราะ default font ไม่มีอักษรไทย (โดยเฉพาะบนเว็บ)
   → คอมเมนต์ในโค้ดเป็นไทยได้ แต่ string ที่โชว์ผู้เล่นต้องเป็นอังกฤษ
 
-**โมเดลเกือบทั้งหมดเป็น primitive mesh ของ Godot** (`BoxMesh`, `CylinderMesh` ที่ `radial_segments = 8`) สร้างด้วยโค้ด
-**ข้อยกเว้นเดียวคือรถ** — `assets/cars/*.glb` (ชุด Cars Bundle ที่ผู้พัฒนานำเข้ามา: `car_a`, `car_b`, `police`, `sports_a`,
+**โมเดล:** เครน รั้ว เสาไฟ เนินขยะ และขยะบางชนิด (ยางรถ ท่อ) เป็น primitive ของ Godot (`BoxMesh`, `CylinderMesh` ที่
+`radial_segments = 8`) — **เครนตั้งใจให้เป็น primitive (ผู้พัฒนาชอบแบบนี้) อย่าเปลี่ยนเป็นโมเดล**
+ขยะส่วนใหญ่ + ของประดับฉากเป็นโมเดล **Kenney (CC0)** ใน `assets/models/blocks/` และ `assets/models/yard/` (แต่ละโฟลเดอร์มี
+`Textures/colormap.png` ของแพ็กตัวเอง ที่ .glb อ้างถึง — **อย่าย้ายโมเดลข้ามโฟลเดอร์** สีจะเพี้ยน) / เครดิต `assets/models/CREDITS.md`
+รถ — `assets/cars/*.glb` (ชุด Cars Bundle ที่ผู้พัฒนานำเข้ามา: `car_a`, `car_b`, `police`, `sports_a`,
 `sports_b`, `suv`, `taxi` / ไฟล์ต้นฉบับ `assets/Cars Bundle-glb.zip` เก็บไว้ ห้ามลบ) ดู `scripts/car_models.gd`
 > **เครดิต:** ในไฟล์ .glb ไม่ระบุผู้สร้าง/ไลเซนส์ (generator = obj2gltf) ให้ผู้พัฒนาตรวจที่มาของ bundle แล้วใส่เครดิตใน README (Phase 7)
 
@@ -81,8 +89,22 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
   ตำแหน่งไว้ใน `±BOUND` / บล็อก `freeze = true` แบบ `FREEZE_MODE_KINEMATIC`
 - **`WAITING`** — เข้าเมื่อคลิกซ้าย (`current.release()`) / รอจน `current.settled` หรือเกิน `MAX_WAIT`
   แล้วค่อย `score += 1` → `recalc_tower_top()` → เช็คถึงโควต้า → `_comment_on_progress()` → `_advance_or_end()`
-- **`FIRED`** — โดนไล่ออก (หลุดครบ `GameData.MAX_FAILS` หรือใช้ชิ้นครบแล้วไม่ถึงโควต้า) คลิก → กลับวันที่ 1
+- **`FIRED`** — โดนไล่ออก (หลุดครบ `GameData.MAX_FAILS` หรือใช้ชิ้นครบแล้วไม่ถึงโควต้า) คลิก → กลับ `TITLE` (ไม่เริ่มวันที่ 1 ทันที)
 - **`ENDING`** — ผ่านวันสุดท้ายแล้ว คลิก → กลับ `TITLE`
+
+**เปลี่ยนฉากแบบจอมืด:** `ScreenFx.cover()` / `uncover()` (CanvasLayer layer 20 ทับทุก UI และกินคลิกระหว่างมืด) — ใช้ตอนเปิดเกม,
+ต้นทุกวัน (`_start_day()` ล้างกอง/ตั้งค่าใต้จอดำ), ขึ้นหน้าโดนไล่ออก, และ `_go_title()` (กลับหน้าแรกจาก FIRED / ENDING / pause)
+ระหว่างจอมืด `state = DIALOGUE` เพื่อกันคลิก / ฉากจบใช้ `fade_to_black()` + ตาเรือง แยกกัน (layer 2)
+
+**Dev console (ลับ):** `scripts/dev_console.gd` (`DevConsole`, layer 30) — กด `` ` `` (ปุ่มซ้ายเลข 1 ใช้ `physical_keycode` ได้แม้คีย์บอร์ดไทย) หรือ F1
+เปิด/ปิด, Esc ปิด / เปิดอยู่ = หยุดเกม / `register(name, usage, callable)` — main ลงทะเบียนคำสั่งใน `_ready()`: **`/day N`** (เริ่มรอบใหม่ที่วัน N
+ใช้ได้ทุกหน้า), **`/give <item|all>`** (`ItemSystem.give()`), ในตัว `/help` `/clear` / ไม่มีอะไรบอกผู้เล่นว่ามี (ลับ) / **เพิ่มคำสั่ง = เพิ่ม `register()` + เมธอด**
+**`_flow_id`** ใน main: `_start_day()` / `_end_day()` / `_go_title()` จำ id ตอนเริ่มแล้วเช็คหลังทุก `await` (`if flow != _flow_id: return`) —
+`/day` เพิ่ม id + `DialogueBox.abort()` เพื่อตัด coroutine เก่าที่ค้างอยู่ (ไม่งั้น `spawn_block()` ซ้ำ) / **เขียน flow ใหม่ที่มี `await` ต้องเช็ค `_flow_id` ด้วย**
+
+**Pause:** `scripts/pause_menu.gd` (`PauseMenu`, layer 15, `PROCESS_MODE_ALWAYS`) — ปุ่ม `PAUSE` มุมขวาบน หรือ Esc / P
+หยุดได้เฉพาะ `HOLDING` / `WAITING` (`can_pause`) / ใช้ `get_tree().paused` → main, ฟิสิกส์, เสียงหยุดหมด / เมนู RESUME,
+QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดปิดเสียง (`SoundToggle`) โชว์เฉพาะหน้า `TITLE` (main ตั้ง `visible` ทุกเฟรม)
 
 **วัน/โควต้า:** `_start_day()` อ่านโควต้าจาก `GameData.DAYS[day - 1]` (ล้างกอง, รีเซ็ตตัวนับ, boss พูดต้นวัน
 แล้ว `spawn_block()`) / `_end_day(passed, reason)` freeze ทุกบล็อก → boss พูด → วันถัดไป / หน้า FIRED / ฉากจบ
@@ -102,7 +124,7 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 | --- | --- | --- |
 | `HOLD_GAP` | `1.8` | บล็อกที่ถือลอยเหนือยอดกองกี่เมตร |
 | `BOUND` | `3.0` | ขอบเขตที่เลื่อนบล็อกได้ (X / Z) — ต้องคู่กับขนาดพื้น (ดู Gotchas ข้อ 7) |
-| `KILL_Y` | `-4.0` | ตกต่ำกว่านี้ = ชิ้นนั้น "หลุดกอง" 1 ครั้ง |
+| `KILL_Y` | `-4.0` | ตกต่ำกว่านี้ = "หลุดกอง" (สำรอง) / ปกติตัดสินที่ `_fell_off()`: ศูนย์กลางออกนอกแท่น (X/Z เกินครึ่งความกว้าง `Ground`) **และ** ต่ำกว่าผิวแท่น — ชิ้นที่เกยขอบแต่ยังเหนือผิวแท่นไม่นับ |
 | `MAX_WAIT` | `5.0` | รอบล็อกนิ่งนานสุดกี่วินาที |
 | `RESTART_DELAY` | `0.3` | หน่วงหลังขึ้นหน้าจบก่อนรับคลิก (วินาที) |
 
@@ -114,7 +136,7 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
   `ENDING`, `COMMENTS`) ตัวแปรในบท: `{day} {days} {quota} {pieces} {height} {fails} {max_fails}`
 
 **ชิ้นที่ "เสีย" (fail) มี 3 แบบ** — ทั้งคู่ผ่าน `_register_fail(key)` (นับ `failed_attempts`, Insurance ช่วยได้ทั้งสองแบบ):
-1. **หลุดขอบ** — `global_position.y < KILL_Y`
+1. **หลุดขอบแท่น** — `_fell_off()` (ตกลงลานรอบแท่น ไม่ต้องรอตกถึง `KILL_Y`)
 2. **ไม่ได้วางบนกอง** — ชิ้นที่ปล่อยแล้วนิ่ง (หรือเกิน `MAX_WAIT`) แต่ขอบล่างสุดติดระดับผิวพื้น `Block.rests_on_ground()`
    ทั้งที่มีชิ้นอื่นนิ่งอยู่แล้ว (`_is_off_stack()`) → `queue_free()` ไม่นับ `score` / **ชิ้นแรกของวัน (ฐาน) ยกเว้น**
    เพราะยังไม่มีกอง / ข้อ 2 ตรวจเฉพาะชิ้นที่เพิ่งวาง ส่วนชิ้นเก่าที่ถูกชนตกลงพื้นทีหลังถูกตรวจโดยข้อ 3
@@ -124,7 +146,7 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
    ชิ้นที่ทับกันเป็นกองเศษบนพื้นจะถูกนับตามลำดับที่ตกถึงพื้น (ชิ้นล่างโดนลบก่อน ชิ้นบนร่วงลงมาแล้วค่อยถูกนับ)
 `DropGuide.ground_is_fail` (main ตั้งเมื่อมีกองแล้ว) ทำให้วงนำทางเป็นสีแดงถ้าจุดตกคือพื้น
 
-**นับชิ้น/หลุดกอง:** `_physics_process` วน `blocks_root.get_children()` ถ้าชิ้นไหน `global_position.y < KILL_Y`
+**นับชิ้น/หลุดกอง:** `_physics_process` วน `blocks_root.get_children()` ถ้า `_fell_off(ชิ้นนั้น)`
 จะ `queue_free()` แล้ว `failed_attempts += 1` **ไม่เว้นฐาน** / `pieces_used` เพิ่มใน `spawn_block()` รวมชิ้นที่หลุดด้วย
 (เป็น "งบ" ไม่ใช่จำนวนที่วางสำเร็จ — `score` ต่างหากคือจำนวนที่นิ่งจริง ตลอดการเล่นรอบนั้นข้ามวัน)
 
@@ -134,9 +156,16 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 **สุ่มขยะ:** `scripts/piece_bag.gd` (`PieceBag`) — ถุงที่ใส่ทุก `Block.Kind` อย่างละชิ้น สลับแล้วหยิบ หมดค่อยเติม
 (ชิ้นแรกของถุงใหม่ไม่ซ้ำชิ้นสุดท้ายของถุงเก่า)
 
-**รถ (`Block.Kind.CAR`):** `scripts/car_models.gd` (`CarModels`) โหลด GLB ทั้ง 7 → รวมชิ้นส่วนเป็น `ArrayMesh` เดียวต่อโมเดล
-**รวม surface ที่ material เดียวกัน** (ลด draw call: ~12 → ~7 ต่อคัน) + แปลงสีเป็น `Psx.material` (material ที่ชื่อมี "light" =
-ไฟหน้า/ไฟท้าย/ไซเรน เรืองแสง) + cache / `Block._setup_car()` สุ่มโมเดล ย่อ `CAR_SCALE` ตั้งกล่องชนตาม AABB และย้ายโมเดลให้ศูนย์กลาง
+**โมเดล .glb (`scripts/model_library.gd`, `ModelLibrary.mesh(scene)`):** รวมชิ้นส่วนทั้งไฟล์เป็น `ArrayMesh` เดียว
+**รวม surface ที่ material เดียวกัน** (ลด draw call) + แปลงสีเป็น `Psx.material` (ชื่อ material มี "light" = เรืองแสง /
+`vertex_color_use_as_albedo` = ใช้ vertex color, shader คูณ `COLOR`) + cache ตาม path / ใช้ทั้งรถและบล็อกขยะ
+
+**โมเดลบล็อกขยะ (ไม่บังคับ):** `data/block_models.gd` (`BlockModels`) — วาง `assets/models/blocks/<file>.glb` (ชื่อตาม `MODELS`
+เช่น `crate`, `oil_barrel`) แล้วบล็อกชนิดนั้นใช้โมเดลทันที ไม่มีไฟล์ = primitive เดิม / `Block._setup_model()` **กล่องชนยังเป็นของเดิม
+จาก `.tscn`** (ฟิสิกส์ไม่เปลี่ยน) โมเดลถูกหมุนตาม `rot` แล้วยืดให้พอดีกล่องชน (`keep_ratio` = สเกลเท่ากันทุกแกน) และซ่อน mesh
+อื่นของ scene (จอทีวี) / เครดิตใส่ `assets/models/CREDITS.md` / รายการไฟล์ที่ต้องหา: `docs/MODELS_TODO.md`
+
+**รถ (`Block.Kind.CAR`):** `scripts/car_models.gd` (`CarModels`) โหลด GLB ทั้ง 7 ผ่าน `ModelLibrary` (~7 draw call ต่อคัน) / `Block._setup_car()` สุ่มโมเดล ย่อ `CAR_SCALE` ตั้งกล่องชนตาม AABB และย้ายโมเดลให้ศูนย์กลาง
 อยู่ที่ origin / เริ่มในถุงวันที่ 2 (`GameData.KIND_FIRST_DAY`) / `Junkyard._build_cars()` วางซากรถประดับในหลุม (16 คัน บางคันคว่ำ/ซ้อน
 ใช้ 3 โมเดล `YARD_CARS` เป็น `MultiMesh`) / Counterweight บนรถใช้ `material_overlay` แทน emission (โมเดลหลาย material)
 
@@ -144,7 +173,7 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 - `GameData.DAYS[i].modifiers` (วัน 3 = `wind`, 4 = `rain`, 5 = `wind`+`shake`) / ค่าจูนอยู่ใน `GameData.MODIFIERS`
   `scripts/day_modifiers.gd` (`DayModifiers`) — `start(mods)`/`stop()` ตอนต้น/จบวัน, `running` (เปิดเฉพาะ HOLDING/WAITING),
   `status_text(yaw)` ข้อความเตือนโชว์ในแถบสถานะเหนือแถบ item
-  - **wind**: IDLE → WARN (เตือนพร้อมนับถอยหลังและลูกศรทิศตามมุมกล้อง) → ACTIVE (ออกแรงคงที่ `force` N ใส่ทุกชิ้นที่ปล่อยแล้ว) / ชิ้นเบาโดนหนักกว่า
+  - **wind**: IDLE → WARN (เตือนพร้อมนับถอยหลังและลูกศรทิศตามมุมกล้อง) → ACTIVE (ชิ้นที่ยังไม่นิ่งโดน `min(force, มวล x max_accel)` N เต็มๆ / ชิ้นที่นิ่งแล้วโดน `settled_mult` เท่า → กองที่วางแล้วไม่ล้มเพราะลม ลมเป็นเรื่องจังหวะปล่อย)
   - **rain**: ลด `friction` ของ `resources/block_physics.tres` (ใช้ร่วมกันทั้งเกม **ต้องคืนค่าเสมอ** → `stop()` ทำให้) + ฝนเป็น `CPUParticles3D`
   - **shake**: ออกแรงแนวราบแกว่งเร็ว x มวล ทุกชิ้นได้ความเร่งเท่ากัน + จอสั่น (`OrbitCamera.rumble`)
 - `GameData.KIND_FIRST_DAY` = วันแรกที่ขยะพิเศษเริ่มอยู่ในถุง (`OIL_BARREL`/`STEEL_CRATE` วัน 2, `TV` วัน 3) / `GameData.kinds_for_day(day)`
@@ -163,7 +192,7 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 - ที่ไหนเล่นเสียงอะไร: `main.gd` (ปล่อย/เสีย/ผ่านวัน/ไล่ออก/กระแทก/item/คลิก), `DialogueBox.blip` → `Sfx.blip()`,
   `DayModifiers.phase_changed` → เตือน/ลม/ครืน, `Ps1Look.flickered` → ไฟกะพริบ, `ItemSystem.used`
 - **กระแทก:** `Block.hit(impact)` (impact ≥ `HIT_MIN` 2.5) → main เล่นเสียงตามแรง / ถ้า ≥ `HARD_IMPACT` (10) สั่นจอ + ฝุ่นด้วย
-- `scripts/sound_toggle.gd` — ปุ่ม SND ON/OFF มุมขวาบน / `scripts/settings.gd` (`Settings`) เก็บ `muted` และ `night_shift`
+- `scripts/sound_toggle.gd` — ปุ่ม SND ON/OFF มุมขวาบน (เฉพาะหน้า title — ตอนเล่นตรงนั้นเป็นปุ่ม PAUSE) / `scripts/settings.gd` (`Settings`) เก็บ `muted` และ `night_shift`
   ใน `user://settings.cfg`
 - **ฟอนต์:** `scripts/game_theme.gd` ตั้ง `fonts/pixel.ttf` (Press Start 2P, OFL) เป็นฟอนต์ default ผ่าน `ThemeDB.get_default_theme()`
   (ตั้ง `Window.theme` ไม่ได้ผล เพราะ CanvasLayer ขวาง) / **ขนาดตัวอักษรต้องเป็นพหุคูณของ 8 (8 / 16)** ไม่งั้นตัวอักษรเพี้ยน
@@ -182,7 +211,7 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 - ผลของแต่ละ item: **Duct Tape** `Block.weld()` สร้าง `Generic6DOFJoint3D` ล็อกทุกแกนกับทุกชิ้นที่แตะ (และโลกถ้าแตะพื้น)
   ใส่ joint ไว้ที่ parent ของบล็อก ไม่ใช่ลูก / **Coffee** `Engine.time_scale = 0.5` ตั้งตอนปล่อยชิ้น คืนเป็น 1.0 ตอนนิ่ง
   (`_reset_time()`) / **Swap Bag** `swap_current()` คืนชิ้นเดิมกลับท้ายคิว `PieceBag.give_back()` ไม่นับเป็นชิ้นที่ใช้เพิ่ม /
-  **Counterweight** `Block.add_counterweight()` mass x3 / **Clipboard** `PieceBag.peek(3)` / **Insurance**
+  **Counterweight** `Block.add_counterweight()` mass x3 / **Clipboard** `items.clipboard_left` = 3 → ลด 1 ทุกครั้งที่ปล่อย (`ItemSystem.on_release()`) หมดแล้วรายการ NEXT หาย / `PieceBag.peek(n)` / **Insurance**
   `consume_insurance()` ถูกเรียกในลูปหลุดขอบก่อนนับ `failed_attempts` (ชิ้นยังนับเป็นที่ใช้ไปแล้ว)
 - คอมเมนต์ของ boss ตอนนี้อยู่ด้านบนจอ (เริ่มหลัง HUD) ส่วนบทพูดบล็อกอยู่ด้านล่าง เพื่อไม่บังแถบ item
 
@@ -210,6 +239,15 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 | `TV` | `block_tv.tscn` | Box `1.1×0.85×0.9` + จอเรืองแสง (**เปราะ** `fragile = true`) | `2.0` | `0.3` / `0.6` |
 | `STEEL_CRATE` | `block_steel_crate.tscn` | Box `1.3×1.1×1.3` (หนัก) | `9.0` | `0.3` / `0.6` |
 | `CAR` | `block_car.tscn` | โมเดลรถ (สุ่ม 1 ใน 7) ย่อ x`0.4` ≈ `0.7×0.5×1.5` + กล่องชนพอดีโมเดล | `3.5` | `0.3` / `0.8` |
+| `CARDBOARD_BOX` | `block_cardboard_box.tscn` | Box `0.8×1.05×0.8` (เบามาก) | `0.6` | `0.3` / `0.6` |
+| `TRASH_BIN` | `block_trash_bin.tscn` | Cylinder r `0.42` h `1.2` (วัน 2+) | `1.5` | `0.4` / `1.8` |
+| `BUCKET` | `block_bucket.tscn` | Cylinder r `0.35` h `0.5` (วัน 3+) | `0.7` | `0.4` / `1.8` |
+| `TOILET` | `block_toilet.tscn` | Box `0.75×0.85×0.6` (วัน 4+) | `3.0` | `0.3` / `0.6` |
+| `SOFA` | `block_sofa.tscn` | Box `2.1×0.95×0.9` (แบนกว้าง วัน 2+) | `4.0` | `0.3` / `0.6` |
+
+โมเดลที่ใช้ต่อชนิด (`data/block_models.gd`): CRATE = ลัง, PLANK = กองไม้, FRIDGE = ตู้เย็น, BARREL = ถัง, SQUARE = เครื่องซักผ้า
+(ชื่อบน UI `WASHER`), OIL_BARREL = ถังเดียวกันย้อมเขียว (`tint`), TV = ทีวีจอตู้, STEEL_CRATE = เครื่องอบผ้าย้อมสีเหล็ก,
+ชนิดใหม่ 5 ชนิดใช้โมเดลชื่อเดียวกัน / TIRE, CYLINDER = primitive (ยังไม่มีโมเดลที่เข้ากัน)
 
 Cylinder blocks (`BARREL`, `TIRE`) carry a much higher `angular_damp` (`1.8` vs `0.6`) because
 they **roll** — without strong damping a tipped barrel/tire keeps rolling almost indefinitely
@@ -237,6 +275,13 @@ promptly instead of waiting out `MAX_WAIT`.
 ส่วนหมุนใช้หลักเดียวกันกับ inertia ของตัวเอง และมี `STICK_PULL` ดูดเข้าหาจุดกึ่งกลางของอีกชิ้นเล็กน้อย
 (เฉพาะตอนแตะกัน) ทำให้ดูเหนียวแบบการ์ตูน
 
+**พันธะเยลลี่ (`_update_bonds()` / `_pull_bond()`):** ชิ้นที่แตะกันและ "เกือบนิ่ง" (`_is_calm()`) ต่อเนื่อง `BOND_CALM_TIME` จะ **จำท่าพัก** ของกันและกัน
+(`_bonds[other] = {off, rot}` ในพิกัดของตัวเอง สร้างพร้อมกันทั้งสองฝั่ง) แล้วทุก physics frame มีสปริงดึงกลับท่าพัก (เชิงเส้น + การหมุน, หน่วงต่ำให้เด้ง,
+คูณ reduced mass, จำกัดความเร่ง `BOND_MAX_*`) → กองที่ยื่นเลยขอบเล็กน้อยค้างไว้/ค่อยๆ ยืดแทนที่จะล้มทันที / ยืดเกิน `BOND_BREAK_DIST` / `BOND_BREAK_ANGLE` = พันธะขาด
+กองล้มจริง / ไม่ผูกกับพื้น, ข้ามชิ้นที่ติดเทป (`taped`) หรือโดน freeze / ชิ้นที่ถูกลบ = พันธะถูกล้างเองเฟรมถัดไป (`is_instance_valid`)
+/ มี deadzone `BOND_DEADZONE` (คลาดน้อยมากไม่ออกแรง ให้ชิ้นหลับและ `settled` ได้) / **จูนความเหนียว:** ค่า `BOND_*` บนสุดของ `block.gd`
+(ทดสอบแล้ว: แผ่นไม้ยื่นเลยขอบลังเกือบ 0.65 ม. ค้างอยู่ ~3° แทนที่จะล้มเป็น 48° / 0.8 ม. ค่อยๆ เอียงใน ~2.5 วิ แทน ~1 วิ / ≥ 0.95 ม. ยังล้ม)
+
 ค่าเริ่มต้น (หน่วง = อัตราต่อวินาที): `STICK_LINEAR := 12.0`, `STICK_ANGULAR := 6.0`, `STICK_PULL := 6.0` (m/s²)
 — ยิ่งสูงยิ่งหนืด/กองง่ายขึ้น ทำงานต่อแม้หลัง `settled = true`
 
@@ -245,7 +290,8 @@ promptly instead of waiting out `MAX_WAIT`.
 
 > **เพิ่มบล็อกชนิดใหม่:** สร้าง `.tscn` ใหม่ใน `scenes/blocks/` (ก๊อปจากอันที่ใกล้เคียงแล้วปรับ
 > mesh/shape/สี/mass ในตัว editor) → เพิ่มชื่อใน `Kind` → บวก `KIND_COUNT` → เพิ่ม entry ใน
-> `SCENES` ชี้ไปที่ scene ใหม่ — **ไม่ต้องแก้โค้ดส่วนอื่น**
+> `SCENES` + `KIND_NAMES` (≤ 6 ตัวอักษร) ชี้ไปที่ scene ใหม่ / ถ้ามีโมเดล เพิ่มใน `BlockModels.MODELS` / ถ้าไม่ให้มีวันแรก
+> เพิ่มใน `GameData.KIND_FIRST_DAY` + บทแนะนำใน `Dialogue.KIND_INTRO` — **ไม่ต้องแก้โค้ดส่วนอื่น**
 
 `settled` บล็อกเช็คตัวเอง: `_physics_process` ต้องได้ `linear_velocity < 0.15` และ
 `angular_velocity < 0.2` ติดกันครบ `1.0` วินาที
@@ -261,7 +307,7 @@ promptly instead of waiting out `MAX_WAIT`.
   `camera.yaw` (เสาอยู่ฝั่งตรงข้ามกล้อง) แขนเล็งไปที่ชิ้นที่ถือ trolley/สาย/ตะขอตามตำแหน่ง / main เรียก
   `update_crane(yaw, held, hold_y, delta)` ทุกเฟรม
 - `scripts/drop_guide.gd` (`DropGuide`) — ray ลงใต้ชิ้นที่ถือ วาดวงเงา + เส้นดิ่ง (แดง = ไม่มีอะไรรองรับ
-  จะตกเหว) / main ตั้ง `guide.target` ทุกเฟรม
+  จะตกลงลานนอกแท่น `pad_top`) / main ตั้ง `guide.target` ทุกเฟรม
 
 main.gd สร้าง `Crane` และ `DropGuide` เองใน `_ready()` (ไม่ได้อยู่ใน `main.tscn`)
 
@@ -297,6 +343,7 @@ Main (Node3D)                ← scripts/main.gd
 | คลิกขวา (สั้น ไม่ลาก) | พลิกตะแคง 90° รอบแกน Z |
 | คลิกขวาค้าง + ลาก | หมุนกล้องรอบกอง 360° (ชิ้นที่ถือจะไม่ตามเมาส์ระหว่างลาก) |
 | ลูกกลิ้งขึ้น / ลง | หมุน ±45° รอบแกน Y |
+| Esc / P หรือปุ่ม PAUSE มุมขวาบน | หยุดเกม / เล่นต่อ (เฉพาะตอนถือหรือรอชิ้นนิ่ง) |
 
 ---
 
@@ -320,12 +367,15 @@ Main (Node3D)                ← scripts/main.gd
 - `scripts/lighting.gd` (`Lighting`) — SpotLight3D ดวงเดียวเหนือกอง ตามความสูงกอง + กะพริบ (สั่นเบาๆ + ไฟวูบสุ่มทุก 4–10 วิ)
   **ไม่เปิด shadow**: vertex snapping ทำให้เงาเพี้ยน และประหยัดบนเว็บ
 - `shaders/psx.gdshader` — spatial shader เขียนเอง: vertex snapping (ปัดตำแหน่งเป็นกริด NDC `snap_grid`) + แสงแบบเป็นขั้น
-  (`light_steps`) / `scripts/psx.gd` (`Psx.material(color, emission)`) สร้าง+cache material ตามสี
+  (`light_steps`) / สี = `albedo × vertex COLOR × albedo_tex` (texture palette ของโมเดล Kenney, filter nearest)
+  / `scripts/psx.gd` (`Psx.material(color, emission, energy, tex)`) สร้าง+cache material ตามสี
   **ทุก mesh ในเกมต้องใช้ `Psx.material()`** (บล็อกแปลงอัตโนมัติจากสีใน `.tscn` ที่ `Block._ready()` ผ่าน `Psx.from_standard()`)
 - `shaders/psx_post.gdshader` + `scripts/post_fx.gd` — โพสต์โปรเซสเต็มจอ: ลดสีเหลือ 5 บิต/ช่อง + dithering Bayer 4x4
   ใช้ `hint_screen_texture` / อยู่ `CanvasLayer` layer 0 (ใต้ UI ทุกชั้น จึงไม่ทำให้ตัวหนังสือแตก) และ `mouse_filter = IGNORE`
-- `scripts/junkyard.gd` (`Junkyard`) — พื้นหลุมขยะ (y = -7 ต่ำกว่า `KILL_Y`), กองขยะประดับ, รั้ววงกลม, เนินขยะไกลๆ, เสาไฟ 6 ต้น
-  จาก primitive ล้วน / seed คงที่ / รวมเป็น `MultiMesh` ตามสี (draw call รวมทั้งฉาก ≈ 50)
+- `scripts/junkyard.gd` (`Junkyard`) — ลานดินระดับพื้น (`FLOOR_Y` 0.6 มีชนจริง `WorldBoundaryShape3D`; แท่นวางสูงกว่าลาน 0.6 ม.) ของประดับห้ามอยู่ใน `CLEAR_RADIUS` 11 ม. จากแท่น (กล้องโคจร 9.5), กองขยะประดับ, รั้ววงกลม, เนินขยะไกลๆ, เสาไฟ 6 ต้น
+  (primitive) + ซากรถ, ขยะโมเดล (`JUNK_PROPS`), ตู้คอนเทนเนอร์ (`_build_props()`), อาคารโรงงาน/ปล่องควันไกลๆ นอกรั้ว
+  (`SKYLINE`, `_build_skyline()`) / seed คงที่ / รวมเป็น `MultiMesh` ตามสีหรือตามโมเดล (`_add_model()`) / ไม่มีไฟล์โมเดล = ข้ามไป
+  (draw call ตอนหน้า title ≈ 65)
 - `scripts/fps_overlay.gd` — กด **F3** เปิดตัวเลข FPS + draw call (ไว้เช็คบนเว็บ build) / เป็นปุ่มดีบักเท่านั้น
 - `OrbitCamera.far = 80` (ระยะวาดสั้นแบบ PS1 + fog กลืนอยู่แล้ว)
 
@@ -381,4 +431,5 @@ Main (Node3D)                ← scripts/main.gd
 6. [x] Phase 4: PS1 look (ฉากมืด, SpotLight กะพริบ, fog, PSX shader, โรงขยะ) — รอเช็ค FPS บนเว็บจริง (กด F3)
 7. [x] Phase 5: ตัวปรับของวัน (ลม/ฝน/แผ่นดินไหว) + ขยะพิเศษ (น้ำมัน/ทีวีเปราะ/ลังเหล็ก) + สั่นจอ (รอทดสอบ)
 8. [x] Phase 6: เสียง (สังเคราะห์ชั่วคราว + รองรับไฟล์จริง), ฟอนต์ pixel, ปุ่มปิดเสียง, ฉากจบ (รอคุณหาไฟล์เสียงจริงมาใส่ `audio/`)
-9. [ ] Phase 7: อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ + README บน GitHub
+9. [x] โมเดล Kenney (CC0) แทนขยะ 8 ชนิด + ขยะใหม่ 5 ชนิด + ของประดับ/อาคารในฉาก (เครนคง primitive) (รอทดสอบ)
+10. [ ] Phase 7: อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ + README บน GitHub

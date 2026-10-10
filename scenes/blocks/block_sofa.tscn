@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://b6ii1x0rv0eof" path="res://scripts/block.gd" id="1_script"]
+[ext_resource type="PhysicsMaterial" path="res://resources/block_physics.tres" id="2_phys"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_sofa"]
+size = Vector3(2.1, 0.95, 0.9)
+
+[sub_resource type="StandardMaterial3D" id="Material_sofa"]
+albedo_color = Color(0.5, 0.22, 0.2, 1)
+roughness = 1.0
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_sofa"]
+size = Vector3(2.1, 0.95, 0.9)
+
+[node name="BlockSofa" type="RigidBody3D"]
+mass = 4.0
+linear_damp = 0.3
+angular_damp = 0.6
+physics_material_override = ExtResource("2_phys")
+script = ExtResource("1_script")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+material_override = SubResource("Material_sofa")
+mesh = SubResource("BoxMesh_sofa")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_sofa")

@@ -1,6 +1,7 @@
 # รายการโมเดลที่ต้องโหลด (แทน primitive ทั้งเกม)
 
-สถานะ: **รอผู้พัฒนาโหลดและวางไฟล์** — ยังไม่ได้แก้โค้ดส่วนนำเข้า (Phase 7 README/รายงาน พักไว้ก่อน)
+สถานะ: **นำเข้าแล้ว** (โมเดล Kenney CC0 — รายละเอียดใน `assets/models/CREDITS.md`) / เครน (หมวด C) **คง primitive ตามที่ผู้ใช้เลือก**
+ยังขาด: `tire.glb`, `cylinder.glb` (ท่อ) — ถ้าเจอโมเดลที่ชอบ วางใน `assets/models/blocks/` ได้เลย (ถ้าใช้ texture ต้องมี `Textures/colormap.png` ที่ตรงกัน) (Phase 7 README/รายงาน พักไว้ก่อน)
 
 ## เงื่อนไขที่เลือกไว้
 - ใช้ **สีเรียบ / vertex color เท่านั้น** (ไม่ใช้ texture)
@@ -70,13 +71,13 @@ assets/models/CREDITS.md   ชื่อโมเดล | ผู้สร้า�
 ไม่ต้องครบ — ไฟล์ไหนไม่มี เกมใช้ primitive เดิมต่อ ทยอยใส่ได้ **แนะนำเริ่มจากหมวด A**
 
 ## แผนนำเข้า (ทำหลังวางไฟล์แล้ว)
-1. ทำ `CarModels` ให้เป็น `ModelLibrary` ทั่วไป (รวม surface ตาม material, `Psx.material`, cache) + รองรับ vertex color (`COLOR`) ใน `psx.gdshader`
-2. `data/block_models.gd` ข้อมูลต่อชนิด: `Kind → {file, scale, collision, offset}` (ไม่มีไฟล์ = ใช้ primitive เดิมใน `.tscn`)
-3. `Block._setup_model()` ต่อยอด `_setup_car()` (ตั้ง mesh, กล่องชนพอดี, ย้ายศูนย์กลางไป origin)
-4. ชนิดขยะใหม่: `Block.Kind` + `KIND_NAMES` + `SCENES` + `GameData.KIND_FIRST_DAY` + `Dialogue.KIND_INTRO`
-5. `crane.gd`: เปลี่ยน `_box()` เป็นโมเดล คงตรรกะหมุน/trolley/สาย
-6. `junkyard.gd`: MultiMesh ต่อโมเดล คุม draw call ≲ 150
-7. อัปเดต CLAUDE.md + CREDITS + สคริปต์ตรวจ AABB/สเกล
+1. [x] ทำ `CarModels` ให้เป็น `ModelLibrary` ทั่วไป (รวม surface ตาม material, `Psx.material`, cache) + รองรับ vertex color (`COLOR`) ใน `psx.gdshader`
+2. [x] `data/block_models.gd` ข้อมูลต่อชนิด: `Kind → {file, rot, keep_ratio}` (ไม่มีไฟล์ = ใช้ primitive เดิมใน `.tscn` / กล่องชนใช้ของเดิมเสมอ)
+3. [x] `Block._setup_model()` ต่อยอด `_setup_car()` (ตั้ง mesh, กล่องชนพอดี, ย้ายศูนย์กลางไป origin)
+4. [x] ชนิดขยะใหม่ (BOX, BIN, BUCKET, TOILET, SOFA): `Block.Kind` + `KIND_NAMES` + `SCENES` + `GameData.KIND_FIRST_DAY` + `Dialogue.KIND_INTRO`
+5. ~~`crane.gd`~~ — ผู้ใช้เลือกคงเครน primitive
+6. [x] `junkyard.gd`: MultiMesh ต่อโมเดล คุม draw call ≲ 150
+7. [x] อัปเดต CLAUDE.md + CREDITS + สคริปต์ตรวจ AABB/สเกล
 
 ## ตรวจหลังนำเข้า
 - สคริปต์ตรวจขนาด AABB / จำนวน vertex ของทุกไฟล์

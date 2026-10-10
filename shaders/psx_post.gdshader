@@ -6,6 +6,8 @@ shader_type canvas_item;
 uniform sampler2D screen_tex : hint_screen_texture, filter_nearest, repeat_disable;
 uniform float levels = 32.0;
 uniform float dither_strength = 1.0;
+// ความละเอียดจริงเป็นกี่เท่าของ 426x240 (post_fx.gd ตั้งให้) → ลาย Bayer ใหญ่ขึ้นตาม ให้หยาบเท่าเดิมทุกความละเอียด / 1.0 = ลายละเอียดตามพิกเซลจริง
+uniform float pixel_scale = 1.0;
 
 const float BAYER[16] = float[16](
 	0.0, 8.0, 2.0, 10.0,
@@ -16,7 +18,7 @@ const float BAYER[16] = float[16](
 
 void fragment() {
 	vec3 c = texture(screen_tex, SCREEN_UV).rgb;
-	ivec2 p = ivec2(mod(FRAGCOORD.xy, 4.0));
+	ivec2 p = ivec2(mod(floor(FRAGCOORD.xy / pixel_scale), 4.0));
 	float d = (BAYER[p.y * 4 + p.x] / 16.0 - 0.5) * dither_strength / levels;
 	c = floor((c + d) * levels + 0.5) / levels;
 	COLOR = vec4(c, 1.0);

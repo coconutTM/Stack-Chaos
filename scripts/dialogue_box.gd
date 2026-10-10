@@ -104,6 +104,25 @@ func comment(text: String) -> void:
 	_show_text(text)
 
 
+# ตัดบทพูดทิ้งทันที (คำสั่ง /day) / emit finished ให้ coroutine ที่ await say() อยู่ตื่นแล้วเลิกเอง (main เช็ค _flow_id)
+func abort() -> void:
+	_typing = false
+	_comment_left = 0.0
+	_panel.hide()
+	if _blocking:
+		_blocking = false
+		finished.emit()
+
+
+# ซ่อนคอมเมนต์ที่ค้างอยู่ทันที (ตอนออกไปหน้าแรก) / ไม่แตะโหมดบล็อก
+func hide_comment() -> void:
+	if _blocking:
+		return
+	_typing = false
+	_comment_left = 0.0
+	_panel.hide()
+
+
 # top = true: คอมเมนต์ด้านบน (เริ่มหลัง HUD) / false: บทพูดเต็มความกว้างด้านล่าง
 func _place(top: bool) -> void:
 	_panel.anchor_top = 0.0 if top else 1.0

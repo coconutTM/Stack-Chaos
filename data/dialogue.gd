@@ -11,7 +11,7 @@ const DAY_INTRO := {
 		"That's your crane. Move the mouse to carry the trash. Left click to drop it.",
 		"Right click flips a piece on its side. Scroll the wheel to spin it.",
 		"Hold right click and drag to look around the pile.",
-		"The white circle shows where it will land. A red line means it's headed for the pit.",
+		"The white circle shows where it will land. A red circle means it's headed off the platform.",
 		"Stack to {quota} meters with {pieces} pieces. Every piece must land on the pile.",
 		"Lose {max_fails} pieces, over the edge or left on the floor, and you're done. If the pile falls, every piece that falls counts.",
 		"The circle turns red when a piece would hit the floor.",
@@ -51,6 +51,10 @@ const KIND_INTRO := {
 	Block.Kind.STEEL_CRATE: ["Steel crates too. Heavy. Great at the bottom. Terrible if you drop one."],
 	Block.Kind.CAR: ["Scrap cars now. Low, wide, heavy. Flat roofs make decent shelves."],
 	Block.Kind.TV: ["Some TVs in the mix. Fragile. Lose one and you're fired. No exceptions."],
+	Block.Kind.TRASH_BIN: ["Trash bins. Yes, we throw away the trash cans too. Round. They roll."],
+	Block.Kind.SOFA: ["Somebody dumped a sofa. Long and flat. Use it as a floor."],
+	Block.Kind.BUCKET: ["Buckets. Small, light, round. Annoying. Like you."],
+	Block.Kind.TOILET: ["Toilets. Don't ask where they came from. Odd shape, heavy base."],
 }
 
 # แจก item ต้นวัน (หลัง DAY_INTRO) — วันที่ 1 มีสอนใช้ / {items} = ชื่อ item ที่ได้
@@ -78,7 +82,7 @@ const DAY_PASS := {
 # ท้ายวัน — โดนไล่ออก (แยกสาเหตุ)
 const FIRED_FAILS := [
 	"You lost {fails} pieces.",
-	"Trash belongs on the pile. Not in the pit. Not on the floor.",
+	"Trash belongs on the pile. Not off the platform. Not on the floor.",
 	"You're fired.",
 ]
 const FIRED_FRAGILE := [

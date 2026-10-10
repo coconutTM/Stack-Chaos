@@ -5,9 +5,10 @@ extends Node3D
 # main.gd ตั้ง target ทุกเฟรม (null = ซ่อนทั้งหมด)
 
 const RAY_LENGTH := 60.0
-const MISS_LINE := 4.0   # ไม่เจออะไรข้างล่าง (จะตกเหว) = เส้นแดงสั้นๆ เตือน
+const MISS_LINE := 4.0   # ไม่เจออะไรข้างล่าง = เส้นแดงสั้นๆ เตือน
 
 var target: Block
+var pad_top := 1.2            # ผิวแท่นวาง (main ตั้ง) / ray โดนจุดที่ต่ำกว่านี้ = ตกขอบแท่นลงลาน → แดง
 var ground_is_fail := false   # true = ตกลงพื้นแล้วนับว่าเสียชิ้น (main.gd ตั้งเมื่อมีกองแล้ว) → วงเป็นสีแดง
 
 var _disc: MeshInstance3D
@@ -59,7 +60,7 @@ func _physics_process(_delta: float) -> void:
 		_disc.visible = true
 		_disc.global_position = Vector3(p.x, p.y + 0.03, p.z)
 		_disc.scale = Vector3(r, 1.0, r)
-		var bad := ground_is_fail and not (hit.collider is Block)
+		var bad := (ground_is_fail and not (hit.collider is Block)) or p.y < pad_top - 0.1
 		_disc.material_override = _red if bad else _white
 		_line.material_override = _red if bad else _white
 

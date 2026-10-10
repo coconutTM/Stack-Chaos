@@ -94,8 +94,13 @@ func _physics_process(_delta: float) -> void:
 	if not running or blocks_root == null:
 		return
 	if _wind.phase == Phase.ACTIVE:
-		var force := float(GameData.MODIFIERS.wind.force)
+		# ลมเน้นชิ้นที่ยังไม่นิ่ง (ชิ้นที่กำลังตก) / กองที่นิ่งแล้วโดนแค่ settled_mult
+		# จำกัดความเร่งไม่เกิน max_accel → ชิ้นเบา (กล่องกระดาษ ถังน้ำ) ไม่ปลิว
+		var cfg: Dictionary = GameData.MODIFIERS.wind
 		for b in _loose_blocks():
+			var force := minf(float(cfg.force), b.mass * float(cfg.max_accel))
+			if b.settled:
+				force *= float(cfg.settled_mult)
 			b.apply_central_force(_wind.dir * force)
 	if _shake.phase == Phase.ACTIVE:
 		var accel := float(GameData.MODIFIERS.shake.accel)

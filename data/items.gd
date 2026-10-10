@@ -31,7 +31,7 @@ const ITEMS := {
 	},
 	"clipboard": {
 		"name": "CLIPBOARD", "short": "CLIP", "weight": 2, "color": Color(0.9, 0.85, 0.5),
-		"desc": "See the next 3 pieces for the rest of the day.",
+		"desc": "See the next 3 pieces. Lasts 3 drops.",
 		"fail": "You already have the list.",
 	},
 	"insurance": {

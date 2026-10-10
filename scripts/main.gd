@@ -7,7 +7,7 @@ enum State { TITLE, DIALOGUE, HOLDING, WAITING, FIRED, ENDING }
 
 const HOLD_GAP := 1.8     # บล็อกที่ถือลอยเหนือยอดกองกี่เมตร (ยิ่งต่ำ ยิ่งตกแรงน้อย กองง่ายขึ้น)
 const BOUND := 3.0        # ขอบเขตที่เลื่อนบล็อกได้ (ตามขนาดพื้น)
-const KILL_Y := -4.0      # ตกต่ำกว่านี้ = ถือว่าชิ้นนั้นหลุดจากกอง
+const KILL_Y := -4.0      # ตกต่ำกว่านี้ = ถือว่าชิ้นนั้นหลุดจากกอง (สำรอง — ปกติโดนจับที่ _fell_off() ก่อนถึงพื้นลาน)
 const MAX_WAIT := 5.0     # รอบล็อกนิ่งนานสุดกี่วินาที
 const HARD_IMPACT := 10.0   # impact เกินนี้ = กระแทกหนัก (เสียงหนัก + สั่นจอ + ฝุ่น) ดู Block.hit
 const RESTART_DELAY := 0.3  # หน่วงหลังขึ้นหน้าจบก่อนรับคลิก (กันเผลอคลิกข้าม)
@@ -26,6 +26,8 @@ var look: Ps1Look
 var modifiers: DayModifiers
 var screen_fx: ScreenFx
 var sfx: Sfx
+var sound_toggle: SoundToggle
+var pause_menu: PauseMenu
 var items: ItemSystem
 var bag := PieceBag.new(GameData.kinds_for_day(1))
 
@@ -49,6 +51,7 @@ var _comment_ready_at := 0   # เวลา (ms) ที่ boss คอมเม�
 var _screen_at_msec := 0     # เวลา (ms) ที่ขึ้นหน้าจบ ใช้คุม RESTART_DELAY
 var _motor := 0.0            # ระดับเสียงมอเตอร์เครน (ตามความเร็วที่ขยับชิ้นที่ถือ)
 var _last_hold_pos := Vector3.ZERO
+var _flow_id := 0            # เพิ่มทุกครั้งที่ /day ตัดลำดับวันกลางคัน → coroutine เก่า (บทพูด/จอมืด) ที่ยังรออยู่เลิกเอง
 
 
 func _ready() -> void:
@@ -56,7 +59,8 @@ func _ready() -> void:
 	GameTheme.apply(get_tree().root)
 	sfx = Sfx.new()
 	add_child(sfx)
-	add_child(SoundToggle.new())
+	sound_toggle = SoundToggle.new()
+	add_child(sound_toggle)
 	sfx.set_loop("ambient", true, -10.0)
 	sfx.set_loop("motor", true, -80.0)
 	look = Ps1Look.new()
@@ -71,6 +75,7 @@ func _ready() -> void:
 	crane = Crane.new()
 	add_child(crane)
 	guide = DropGuide.new()
+	guide.pad_top = ground.position.y + ground.size.y * 0.5
 	add_child(guide)
 	dialogue = DialogueBox.new()
 	add_child(dialogue)
@@ -82,6 +87,14 @@ func _ready() -> void:
 	dialogue.blip.connect(sfx.blip)
 	look.flickered.connect(func() -> void: sfx.play("buzz", -6.0))
 	modifiers.phase_changed.connect(_on_modifier_phase)
+	var console := DevConsole.new()
+	console.register("day", "/day N  start a fresh run at day N (1-%d)" % GameData.DAYS.size(), _debug_day)
+	console.register("give", "/give <item|all>  add items", _debug_give)
+	add_child(console)
+	pause_menu = PauseMenu.new()
+	pause_menu.can_pause = func() -> bool: return state == State.HOLDING or state == State.WAITING
+	pause_menu.quit_requested.connect(_go_title)
+	add_child(pause_menu)
 	add_child(FpsOverlay.new())
 	camera.tapped.connect(_on_camera_tapped)
 
@@ -90,7 +103,9 @@ func _ready() -> void:
 	score_label.add_theme_font_size_override("font_size", 8)   # Press Start 2P คมสุดที่พหุคูณของ 8
 	game_over_label.add_theme_font_size_override("font_size", 16)
 	game_over_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	screen_fx.cover_now()   # เปิดเกมจากจอดำแล้วค่อยๆ สว่าง
 	_show_title()
+	screen_fx.uncover(0.8)
 
 
 func _process(delta: float) -> void:
@@ -111,18 +126,20 @@ func _process(delta: float) -> void:
 	# มีกองแล้ว (มีชิ้นนิ่ง) → วงนำทางจะเตือนสีแดงถ้าจุดตกคือพื้น
 	guide.ground_is_fail = holding and _has_settled_piece(current)
 	_refresh_items()
+	sound_toggle.visible = state == State.TITLE   # ปุ่มเปิด/ปิดเสียงมีเฉพาะหน้าแรก
 
 
 func _physics_process(delta: float) -> void:
 	if state != State.HOLDING and state != State.WAITING:
 		return
 
-	# ของชิ้นไหนหล่นตกขอบพื้น = หลุดจากกอง 1 ชิ้น (รวมฐานด้วย ไม่มีการยกเว้น)
+	# ของชิ้นไหนหล่นตกขอบแท่น = หลุดจากกอง 1 ชิ้น (รวมฐานด้วย ไม่มีการยกเว้น)
 	for b in blocks_root.get_children():
-		if b.global_position.y >= KILL_Y:
+		if not _fell_off(b):
 			continue
 		var was_current := b == current
 		var fragile := (b as Block) != null and (b as Block).fragile
+		Effects.puff(self, b.global_position)   # ฝุ่นฟุ้งตรงที่ตกลงลาน
 		b.queue_free()
 		if _register_fail("fail", fragile):
 			return
@@ -172,17 +189,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.TITLE:
 			if event.button_index == MOUSE_BUTTON_LEFT:
 				_start_run()
-		State.FIRED:
+		State.FIRED, State.ENDING:   # กลับไปหน้าแรกก่อน (ไม่เริ่มวันที่ 1 ทันที)
 			if event.button_index == MOUSE_BUTTON_LEFT and _screen_ready():
-				_start_run()
-		State.ENDING:
-			if event.button_index == MOUSE_BUTTON_LEFT and _screen_ready():
-				_show_title()
+				_go_title()
 		State.HOLDING:
 			match event.button_index:
 				MOUSE_BUTTON_LEFT:        # คลิกซ้าย = ปล่อย
 					current.release()
 					sfx.play("release")
+					items.on_release()
 					state = State.WAITING
 					wait_time = 0.0
 					if items.coffee_pending:
@@ -208,11 +223,16 @@ func _start_run() -> void:
 	day = 1
 	score = 0
 	items.reset_run()
-	game_over_label.hide()
 	_start_day()
 
 
 func _start_day() -> void:
+	var flow := _flow_id   # /day ตัดกลางคัน → coroutine นี้เลิกเองหลัง await (ดู _debug_day)
+	state = State.DIALOGUE   # กันคลิกระหว่างจอมืด
+	await screen_fx.cover()   # เปลี่ยนวัน: จอมืด → ล้างกอง/ตั้งค่าวันใหม่ใต้จอดำ → สว่าง
+	if flow != _flow_id:
+		return
+	game_over_label.hide()
 	var d: Dictionary = GameData.DAYS[day - 1]
 	quota_height = d.height
 	max_pieces = d.pieces
@@ -237,9 +257,13 @@ func _start_day() -> void:
 	_comment_ready_at = 0
 	score_label.show()
 	update_ui()
+	await screen_fx.uncover()
+	if flow != _flow_id:
+		return
 
-	state = State.DIALOGUE
 	await dialogue.say(_lines(_intro_lines()))
+	if flow != _flow_id:
+		return
 
 	# boss แจก item สุ่มตอนต้นวัน
 	var given := items.grant_daily()
@@ -248,13 +272,18 @@ func _start_day() -> void:
 	var give_lines: Array = Dialogue.ITEM_GIVE_FIRST if day == 1 else Dialogue.ITEM_GIVE
 	if not given.names.is_empty():
 		await dialogue.say(_lines(give_lines, {"items": ", ".join(given.names)}))
+		if flow != _flow_id:
+			return
 	if given.overflow > 0:
 		await dialogue.say(_lines(Dialogue.ITEM_FULL))
+		if flow != _flow_id:
+			return
 	spawn_block()
 
 
 # จบวัน: ผ่าน → boss พูด → วันต่อไป (หรือฉากจบ) / ไม่ผ่าน → โดนไล่ออก
 func _end_day(passed: bool, reason := "") -> void:
+	var flow := _flow_id   # /day ตัดกลางคัน → coroutine นี้เลิกเองหลัง await (ดู _debug_day)
 	state = State.DIALOGUE
 	_reset_time()
 	modifiers.stop()
@@ -272,17 +301,29 @@ func _end_day(passed: bool, reason := "") -> void:
 			fired_lines = Dialogue.FIRED_FRAGILE
 		sfx.play("fired")
 		await dialogue.say(_lines(fired_lines))
+		if flow != _flow_id:
+			return
+		await screen_fx.cover()
+		if flow != _flow_id:
+			return
 		_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nLOST: %d PIECES\n\nclick to start over" % [
 			day, tower_top, quota_height, failed_attempts
 		])
 		state = State.FIRED
+		screen_fx.uncover()
 		return
 
 	sfx.play("pass")
 	await dialogue.say(_lines(Dialogue.DAY_PASS[day]))
+	if flow != _flow_id:
+		return
 	if day >= GameData.DAYS.size():
 		await dialogue.say(_lines(Dialogue.ENDING))
+		if flow != _flow_id:
+			return
 		await _ending_cinematic()
+		if flow != _flow_id:
+			return
 		Settings.night_shift = true
 		Settings.save_all()
 		_show_screen("SHIFT COMPLETE\nTRASH STACKED: %d\n\nclick to return to title" % score)
@@ -301,6 +342,20 @@ func _ending_cinematic() -> void:
 	await get_tree().create_timer(3.5).timeout
 	screen_fx.clear(0.8)
 	sfx.set_loop("ambient", true, -10.0)
+
+
+# กลับหน้าแรกแบบจอมืด (จากหน้าโดนไล่ออก / ฉากจบ / เมนู pause)
+func _go_title() -> void:
+	var flow := _flow_id   # /day ตัดกลางคัน → coroutine นี้เลิกเองหลัง await (ดู _debug_day)
+	state = State.DIALOGUE   # กันคลิกระหว่างจอมืด
+	await screen_fx.cover()
+	if flow != _flow_id:
+		return
+	dialogue.hide_comment()
+	_show_title()
+	await screen_fx.uncover()
+	if flow != _flow_id:
+		return
 
 
 func _show_title() -> void:
@@ -327,7 +382,52 @@ func _screen_ready() -> bool:
 	return (Time.get_ticks_msec() - _screen_at_msec) / 1000.0 >= RESTART_DELAY
 
 
+# ---------- คำสั่งนักพัฒนา (DevConsole) ----------
+
+# /day N — เริ่มรอบใหม่ที่วัน N ทันที (ตัดบทพูด/จอมืด/pause ที่ค้างอยู่ทิ้ง)
+func _debug_day(args: PackedStringArray) -> String:
+	if args.is_empty() or not args[0].is_valid_int():
+		return "Usage: /day N"
+	var n := args[0].to_int()
+	if n < 1 or n > GameData.DAYS.size():
+		return "Day must be 1-%d" % GameData.DAYS.size()
+	_flow_id += 1
+	pause_menu.set_paused(false)
+	dialogue.abort()
+	screen_fx.clear(0.01)   # เผื่อกำลังอยู่ในฉากจบ (จอมืด + ตา)
+	sfx.set_loop("ambient", true, -10.0)
+	_reset_time()
+	day = n
+	score = 0
+	items.reset_run()
+	_start_day()
+	return "Starting day %d" % n
+
+
+# /give <item|all> — ใส่ item เข้าคลัง (เต็ม MAX_SLOTS แล้วหยุด)
+func _debug_give(args: PackedStringArray) -> String:
+	if args.is_empty():
+		return "Usage: /give <item|all>\nItems: %s" % ", ".join(ItemData.ITEMS.keys())
+	var ids: Array = ItemData.ITEMS.keys() if args[0] == "all" else [args[0].to_lower()]
+	var added: Array[String] = []
+	for id in ids:
+		if not ItemData.ITEMS.has(id):
+			return "Unknown item: %s" % id
+		if items.give(id):
+			added.append(id)
+	return "Added: %s" % (", ".join(added) if not added.is_empty() else "nothing (slots full)")
+
+
 # ---------- ชิ้นขยะ ----------
+
+# ชิ้นนี้ตกขอบแท่นแล้วไหม: จุดศูนย์กลางออกนอกแท่น (X/Z) และต่ำกว่าผิวแท่น / ชิ้นที่เกยขอบแต่ยังอยู่เหนือผิวแท่นไม่นับ
+func _fell_off(b: Node3D) -> bool:
+	var p := b.global_position
+	if p.y < KILL_Y:
+		return true
+	var half := ground.size.x * 0.5
+	var outside := absf(p.x) > half or absf(p.z) > half
+	return outside and p.y < ground.position.y + ground.size.y * 0.5
 
 # นับชิ้นที่เสีย 1 ชิ้น (หลุดขอบ / ไม่ได้อยู่บนกอง) / Insurance ช่วยได้ทั้งสองแบบ
 # คืน true ถ้าจบวันแล้ว (โดนไล่ออก) ผู้เรียกต้อง return ทันที
@@ -354,7 +454,7 @@ func _register_fail(key: String, fragile := false) -> bool:
 
 
 # กองล้ม: ชิ้นเก่าที่เคยนิ่งบนกองแต่ตอนนี้ไปนอนพื้น (ที่ไม่ใช่ฐาน) = เสียชิ้นนั้น นับทีละชิ้น
-# (ชิ้นที่ล้มตกขอบไปเลยถูกนับโดยลูป KILL_Y อยู่แล้ว) / คืน true ถ้าจบวันแล้ว
+# (ชิ้นที่ล้มตกขอบไปเลยถูกนับโดยลูป _fell_off() อยู่แล้ว) / คืน true ถ้าจบวันแล้ว
 func _check_collapse() -> bool:
 	if stack_base != null and not is_instance_valid(stack_base):
 		stack_base = null   # ฐานหลุดขอบไปแล้ว
@@ -574,9 +674,9 @@ func _refresh_items() -> void:
 			parts.append("SLIPPERY")
 
 	var next_text := ""
-	if items.clipboard:
+	if items.clipboard_left > 0:
 		var names: Array[String] = []
-		for k in bag.peek(3):
+		for k in bag.peek(items.clipboard_left):
 			names.append(Block.KIND_NAMES[k])
 		next_text = "NEXT:\n" + "\n".join(names)
 

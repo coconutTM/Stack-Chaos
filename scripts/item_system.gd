@@ -8,7 +8,8 @@ signal changed
 signal used(ok: bool)   # ใช้ item เสร็จ (ok = ใช้สำเร็จ) ไว้เล่นเสียง
 
 var inventory: Array[String] = []
-var clipboard := false        # เห็น 3 ชิ้นถัดไป (รีเซ็ตทุกวัน)
+const CLIPBOARD_DROPS := 3
+var clipboard_left := 0       # Clipboard: เห็นชิ้นถัดไปอีกกี่ชิ้น (ลดทีละ 1 ทุกครั้งที่ปล่อย หมด = หมดฤทธิ์ / รีเซ็ตทุกวัน)
 var coffee_pending := false   # กาแฟพร้อมใช้กับชิ้นถัดไปที่ปล่อย (รีเซ็ตทุกวัน)
 var insurance := 0            # จำนวนครั้งที่ยกเว้นการหลุดขอบ (ค้างข้ามวันจนกว่าจะถูกใช้ รีเซ็ตทุกรอบ)
 
@@ -26,7 +27,7 @@ func reset_run() -> void:
 
 
 func reset_day() -> void:
-	clipboard = false
+	clipboard_left = 0
 	coffee_pending = false
 	changed.emit()
 
@@ -44,6 +45,15 @@ func grant_daily() -> Dictionary:
 			names.append(ItemData.ITEMS[id].name)
 	changed.emit()
 	return {"names": names, "overflow": overflow}
+
+
+# ใส่ item ตรงๆ (คำสั่ง /give ของ DevConsole) / คืน false ถ้าช่องเต็ม
+func give(id: String) -> bool:
+	if inventory.size() >= ItemData.MAX_SLOTS:
+		return false
+	inventory.append(id)
+	changed.emit()
+	return true
 
 
 # ใช้ item ในช่องที่ index / ผลเป็นเมธอด _use_<id>() (คืน true = ใช้สำเร็จและหมดไป)
@@ -103,10 +113,17 @@ func _use_counterweight() -> bool:
 
 
 func _use_clipboard() -> bool:
-	if clipboard:
+	if clipboard_left > 0:
 		return false
-	clipboard = true
+	clipboard_left = CLIPBOARD_DROPS
 	return true
+
+
+# เรียกทุกครั้งที่ปล่อยชิ้น: รายการ Clipboard หดลง 1 (ปล่อยครบ 3 = ถือชิ้นสุดท้ายที่เคยเห็นพอดี แล้วรายการหายไป)
+func on_release() -> void:
+	if clipboard_left > 0:
+		clipboard_left -= 1
+		changed.emit()
 
 
 func _use_insurance() -> bool:

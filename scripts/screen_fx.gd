@@ -2,6 +2,7 @@ class_name ScreenFx
 extends CanvasLayer
 
 # เอฟเฟกต์เต็มจอ: แฟลชสี (เช่นแดงตอนเสียชิ้น) / flash(color, alpha, seconds)
+# + จอดำตอนเปลี่ยนฉาก cover()/uncover() (อยู่ CanvasLayer แยกบนสุด ทับทุก UI และกินคลิกระหว่างมืด)
 
 const EYE_COLOR := Color(1.0, 0.85, 0.2)
 
@@ -10,6 +11,8 @@ var _black: ColorRect
 var _eyes: Control
 var _tween: Tween
 var _fade_tween: Tween
+var _cover: ColorRect
+var _cover_tween: Tween
 
 
 func _ready() -> void:
@@ -26,6 +29,16 @@ func _ready() -> void:
 	_black.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_black.color = Color(0, 0, 0, 0)
 	add_child(_black)
+
+	# จอดำเปลี่ยนฉาก: layer 20 เหนือทุกอย่าง (แถบ item 5, boss 10, pause 15)
+	var fade_layer := CanvasLayer.new()
+	fade_layer.layer = 20
+	add_child(fade_layer)
+	_cover = ColorRect.new()
+	_cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cover.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_cover.color = Color(0, 0, 0, 0)
+	fade_layer.add_child(_cover)
 
 	# ตาเรืองสองดวงกลางจอ (ตาของผู้เล่นในฉากจบ) กว้างเริ่มปิด
 	_eyes = Control.new()
@@ -77,6 +90,32 @@ func clear(seconds := 0.6) -> void:
 	_fade_tween = create_tween()
 	_fade_tween.tween_property(_black, "color:a", 0.0, seconds)
 	await _fade_tween.finished
+
+
+# เปลี่ยนฉาก: ค่อยๆ มืดสนิท (await ได้) / ระหว่างมืดกินคลิกทั้งหมด
+func cover(seconds := 0.4) -> void:
+	_cover.mouse_filter = Control.MOUSE_FILTER_STOP
+	await _tween_cover(1.0, seconds)
+
+
+# เปลี่ยนฉาก: ค่อยๆ สว่างกลับ แล้วปล่อยให้คลิกได้
+func uncover(seconds := 0.4) -> void:
+	await _tween_cover(0.0, seconds)
+	_cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+# เริ่มจากมืดสนิททันที (ตอนเปิดเกม)
+func cover_now() -> void:
+	_cover.color.a = 1.0
+	_cover.mouse_filter = Control.MOUSE_FILTER_STOP
+
+
+func _tween_cover(alpha: float, seconds: float) -> void:
+	if _cover_tween:
+		_cover_tween.kill()
+	_cover_tween = create_tween()
+	_cover_tween.tween_property(_cover, "color:a", alpha, seconds)
+	await _cover_tween.finished
 
 
 func flash(color: Color, alpha := 0.3, seconds := 0.35) -> void:
