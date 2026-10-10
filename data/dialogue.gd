@@ -12,7 +12,9 @@ const DAY_INTRO := {
 		"Right click flips a piece on its side. Scroll the wheel to spin it.",
 		"Hold right click and drag to look around the pile.",
 		"The white circle shows where it will land. A red line means it's headed for the pit.",
-		"Stack to {quota} meters with {pieces} pieces. Lose {max_fails} pieces over the edge and you're done.",
+		"Stack to {quota} meters with {pieces} pieces. Every piece must land on the pile.",
+		"Lose {max_fails} pieces, over the edge or left on the floor, and you're done.",
+		"The circle turns red when a piece would hit the floor.",
 		"Don't disappoint me.",
 	],
 	2: [
@@ -60,8 +62,8 @@ const DAY_PASS := {
 
 # ท้ายวัน — โดนไล่ออก (แยกสาเหตุ)
 const FIRED_FAILS := [
-	"You dropped {fails} pieces.",
-	"Trash belongs on the pile. Not in the pit.",
+	"You lost {fails} pieces.",
+	"Trash belongs on the pile. Not in the pit. Not on the floor.",
 	"You're fired.",
 ]
 const FIRED_PIECES := [
@@ -82,6 +84,8 @@ const ENDING := [
 const COMMENTS := {
 	"tutorial_drop": ["Let it settle. Patience.", "Wait for it to stop moving."],
 	"tutorial_fail": ["That one's gone. Careful with the edge."],
+	"tutorial_off_stack": ["On the floor doesn't count. It has to stay on the pile."],
+	"off_stack": ["That's the floor, not the pile.", "Trash on the floor? Really?", "Land it on the stack."],
 	"fail": ["There goes another one.", "Watch the edge.", "Was that on purpose?"],
 	"collapse": ["The whole pile just moved.", "Hm. It's falling apart.", "Is that what you call stacking?"],
 	"insured": ["Covered. This time.", "The company pays for that one. Once."],

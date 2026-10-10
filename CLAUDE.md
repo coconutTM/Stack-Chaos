@@ -111,6 +111,13 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 - `data/dialogue.gd` (`Dialogue`) — บทพูดทั้งหมด (`DAY_INTRO`, `DAY_PASS`, `FIRED_FAILS`, `FIRED_PIECES`,
   `ENDING`, `COMMENTS`) ตัวแปรในบท: `{day} {days} {quota} {pieces} {height} {fails} {max_fails}`
 
+**ชิ้นที่ "เสีย" (fail) มี 2 แบบ** — ทั้งคู่ผ่าน `_register_fail(key)` (นับ `failed_attempts`, Insurance ช่วยได้ทั้งสองแบบ):
+1. **หลุดขอบ** — `global_position.y < KILL_Y`
+2. **ไม่ได้วางบนกอง** — ชิ้นที่ปล่อยแล้วนิ่ง (หรือเกิน `MAX_WAIT`) แต่ขอบล่างสุดติดระดับผิวพื้น `Block.rests_on_ground()`
+   ทั้งที่มีชิ้นอื่นนิ่งอยู่แล้ว (`_is_off_stack()`) → `queue_free()` ไม่นับ `score` / **ชิ้นแรกของวัน (ฐาน) ยกเว้น**
+   เพราะยังไม่มีกอง / ตรวจเฉพาะชิ้นที่เพิ่งวาง ไม่ตรวจชิ้นเก่าที่ถูกชนตกลงพื้นทีหลัง
+`DropGuide.ground_is_fail` (main ตั้งเมื่อมีกองแล้ว) ทำให้วงนำทางเป็นสีแดงถ้าจุดตกคือพื้น
+
 **นับชิ้น/หลุดกอง:** `_physics_process` วน `blocks_root.get_children()` ถ้าชิ้นไหน `global_position.y < KILL_Y`
 จะ `queue_free()` แล้ว `failed_attempts += 1` **ไม่เว้นฐาน** / `pieces_used` เพิ่มใน `spawn_block()` รวมชิ้นที่หลุดด้วย
 (เป็น "งบ" ไม่ใช่จำนวนที่วางสำเร็จ — `score` ต่างหากคือจำนวนที่นิ่งจริง ตลอดการเล่นรอบนั้นข้ามวัน)
@@ -271,6 +278,9 @@ Main (Node3D)                ← scripts/main.gd
 ---
 
 ## 7. Gotchas
+
+0. **บอดี้ที่นิ่งแล้วจะ "หลับ" (sleep) และ `get_colliding_bodies()` คืนว่าง** — อย่าใช้ contact ตรวจว่าชิ้นที่นิ่งแล้ว
+   แตะอะไร ให้ใช้เรขาคณิต (`rests_on_ground()`) หรือปลุก (`sleeping = false`) แล้วรอ physics frame ก่อน (`weld()` ทำแบบนี้)
 
 1. **ปรับ "ฟีล" ของบล็อก (ขนาด/สี/mass) ให้แก้ที่ `.tscn` ใน `scenes/blocks/` ไม่ใช่ใน `scripts/block.gd`**
    — ตั้งแต่เปลี่ยนมาใช้ scene ต่อชนิด โค้ดใน `block.gd` ไม่รู้จัก mesh/shape/mass ของแต่ละ `Kind`

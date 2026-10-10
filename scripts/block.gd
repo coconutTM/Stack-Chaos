@@ -74,6 +74,13 @@ func top_y() -> float:
 	return (_mesh.global_transform * _mesh.get_aabb()).end.y
 
 
+# ชิ้นนี้วางอยู่บนพื้นไหม (ขอบล่างสุดของ mesh ติดระดับผิวพื้น) / ใช้เรขาคณิตแทน get_colliding_bodies()
+# เพราะบอดี้ที่นิ่งแล้วจะหลับ (sleep) และ Jolt ไม่รายงาน contact ให้ตอนหลับ
+func rests_on_ground(ground_top: float, tolerance := 0.12) -> bool:
+	var bb := _mesh.global_transform * _mesh.get_aabb()
+	return bb.position.y <= ground_top + tolerance
+
+
 # Item: Counterweight — ชิ้นนี้หนักขึ้น mult เท่า (inertia คำนวณใหม่เองตามมวล) + เรืองสีส้มให้เห็น
 func add_counterweight(mult := 3.0) -> void:
 	if weighted:
@@ -88,6 +95,12 @@ func weld() -> void:
 	if taped:
 		return
 	taped = true
+	# บอดี้ที่นิ่งแล้วหลับอยู่ ไม่มี contact → ปลุกแล้วรอให้ฟิสิกส์รายงาน contact ก่อน
+	sleeping = false
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if not is_inside_tree():
+		return   # ถูกลบระหว่างรอ (เช่นหลุดขอบ)
 	var joints := 0
 	var touches_world := false
 	for body in get_colliding_bodies():

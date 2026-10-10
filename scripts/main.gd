@@ -15,6 +15,7 @@ const RESTART_DELAY := 0.3  # หน่วงหลังขึ้นหน้�
 @onready var blocks_root: Node3D = $Blocks
 @onready var score_label: Label = $UI/ScoreLabel
 @onready var game_over_label: Label = $UI/GameOverLabel
+@onready var ground: CSGBox3D = $Ground
 
 var crane: Crane
 var guide: DropGuide
@@ -71,6 +72,8 @@ func _process(delta: float) -> void:
 
 	crane.update_crane(camera.yaw, current if holding else null, tower_top + HOLD_GAP, delta)
 	guide.target = current if holding else null
+	# มีกองแล้ว (มีชิ้นนิ่ง) → วงนำทางจะเตือนสีแดงถ้าจุดตกคือพื้น
+	guide.ground_is_fail = holding and _has_settled_piece(current)
 	_refresh_items()
 
 
@@ -84,15 +87,8 @@ func _physics_process(delta: float) -> void:
 			continue
 		var was_current := b == current
 		b.queue_free()
-		if items.consume_insurance():
-			_comment("insured")   # ประกันจ่าย: ชิ้นนี้ไม่นับว่าหลุด (ยังนับเป็นชิ้นที่ใช้ไปแล้ว)
-		else:
-			failed_attempts += 1
-			update_ui()
-			if failed_attempts >= GameData.MAX_FAILS:
-				_end_day(false, "fails")
-				return
-			_comment("tutorial_fail" if _is_tutorial() else "fail")
+		if _register_fail("fail"):
+			return
 		if was_current:
 			_reset_time()
 			# ชิ้นที่ปล่อยไปหลุดตอนยังไม่ทันนิ่ง ไม่นับคะแนน ไปต่อชิ้นใหม่เลย (ถ้ายังมีของเหลือ)
@@ -104,6 +100,14 @@ func _physics_process(delta: float) -> void:
 	if state == State.WAITING:
 		wait_time += delta
 		if current.settled or wait_time > MAX_WAIT:
+			# ตกลงพื้นข้างกองแทนที่จะอยู่บนกอง = นับว่าเสียชิ้นนี้ (เอาออกจากฉาก ไม่นับคะแนน)
+			if _is_off_stack(current):
+				current.queue_free()
+				_reset_time()
+				if _register_fail("off_stack"):
+					return
+				_advance_or_end()
+				return
 			current.settled = true
 			last_settled = current
 			_reset_time()
@@ -209,7 +213,7 @@ func _end_day(passed: bool, reason := "") -> void:
 
 	if not passed:
 		await dialogue.say(_lines(Dialogue.FIRED_FAILS if reason == "fails" else Dialogue.FIRED_PIECES))
-		_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nDROPPED: %d PIECES\n\nclick to start over" % [
+		_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nLOST: %d PIECES\n\nclick to start over" % [
 			day, tower_top, quota_height, failed_attempts
 		])
 		state = State.FIRED
@@ -247,6 +251,38 @@ func _screen_ready() -> bool:
 
 
 # ---------- ชิ้นขยะ ----------
+
+# นับชิ้นที่เสีย 1 ชิ้น (หลุดขอบ / ไม่ได้อยู่บนกอง) / Insurance ช่วยได้ทั้งสองแบบ
+# คืน true ถ้าจบวันแล้ว (โดนไล่ออก) ผู้เรียกต้อง return ทันที
+func _register_fail(key: String) -> bool:
+	if items.consume_insurance():
+		_comment("insured")   # ประกันจ่าย: ชิ้นนี้ไม่นับว่าเสีย (ยังนับเป็นชิ้นที่ใช้ไปแล้ว)
+		return false
+	failed_attempts += 1
+	update_ui()
+	if failed_attempts >= GameData.MAX_FAILS:
+		_end_day(false, "fails")
+		return true
+	var tutorial_key := "tutorial_" + key
+	_comment(tutorial_key if _is_tutorial() and Dialogue.COMMENTS.has(tutorial_key) else key)
+	return false
+
+
+# ชิ้นที่เพิ่งนิ่งแตะพื้นอยู่ ทั้งที่มีกองอยู่แล้ว (มีชิ้นอื่นนิ่งอยู่) = ไม่ได้วางบนกอง
+# ชิ้นแรกของวัน (ฐาน) ได้รับการยกเว้น เพราะยังไม่มีกองให้วาง
+func _is_off_stack(blk: Block) -> bool:
+	var ground_top := ground.position.y + ground.size.y * 0.5
+	if not blk.rests_on_ground(ground_top):
+		return false
+	return _has_settled_piece(blk)
+
+
+func _has_settled_piece(except: Block) -> bool:
+	for b in blocks_root.get_children():
+		var o := b as Block
+		if o and o != except and o.released and o.settled and not o.is_queued_for_deletion():
+			return true
+	return false
 
 # ไปชิ้นถัดไปถ้ายังมีของเหลือ ไม่งั้นใช้ของครบแล้วยังไม่ถึงโควต้า = แพ้
 func _advance_or_end() -> void:
