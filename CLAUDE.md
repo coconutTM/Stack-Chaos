@@ -183,6 +183,19 @@ list นี้ว่างเปล่าตลอด) แล้วหน่ว�
 
 `top_y()` คืนความสูงขอบบนสุดแบบคิดการหมุนจริงด้วย `(_mesh.global_transform * _mesh.get_aabb()).end.y`
 
+### สคริปต์เสริม (Phase 1) — แยกตามหน้าที่
+
+- `scripts/orbit_camera.gd` (`OrbitCamera`, ติดกับ `Camera3D` ใน `main.tscn`) — กล้องโคจร: `yaw`,
+  `target_y` (main ตั้งเป็น `tower_top`), `dragging`, signal `tapped` (คลิกขวาสั้น) / ค่า `RADIUS`,
+  `HEIGHT`, `DRAG_THRESHOLD`, `DRAG_SENS` เป็น const บนสุดของไฟล์
+- `scripts/crane.gd` (`Crane`) — เครนทาวเวอร์จาก primitive สร้างด้วยโค้ดใน `_ready()` / หมุนตาม
+  `camera.yaw` (เสาอยู่ฝั่งตรงข้ามกล้อง) แขนเล็งไปที่ชิ้นที่ถือ trolley/สาย/ตะขอตามตำแหน่ง / main เรียก
+  `update_crane(yaw, held, hold_y, delta)` ทุกเฟรม
+- `scripts/drop_guide.gd` (`DropGuide`) — ray ลงใต้ชิ้นที่ถือ วาดวงเงา + เส้นดิ่ง (แดง = ไม่มีอะไรรองรับ
+  จะตกเหว) / main ตั้ง `guide.target` ทุกเฟรม
+
+main.gd สร้าง `Crane` และ `DropGuide` เองใน `_ready()` (ไม่ได้อยู่ใน `main.tscn`)
+
 ### Scenes
 
 ```
@@ -211,7 +224,8 @@ Main (Node3D)                ← scripts/main.gd
 | --- | --- |
 | ขยับเมาส์ | เลื่อนตำแหน่งบล็อกที่ถืออยู่ |
 | คลิกซ้าย | ปล่อยบล็อก (หรือเริ่มใหม่ตอน game over) |
-| คลิกขวา | พลิกตะแคง 90° รอบแกน Z |
+| คลิกขวา (สั้น ไม่ลาก) | พลิกตะแคง 90° รอบแกน Z |
+| คลิกขวาค้าง + ลาก | หมุนกล้องรอบกอง 360° (ชิ้นที่ถือจะไม่ตามเมาส์ระหว่างลาก) |
 | ลูกกลิ้งขึ้น / ลง | หมุน ±45° รอบแกน Y |
 
 ---
@@ -276,7 +290,8 @@ Main (Node3D)                ← scripts/main.gd
 
 1. [x] Prototype เล่นได้ (`main.gd` + `block.gd`)
 2. [x] Phase 0: แก้ HUD, รวมบล็อก SQUARE/CYLINDER, freeze ตอนจบเกม, export เว็บผ่านแล้ว (ยังต้องทดสอบรันบนเบราว์เซอร์/itch.io จริง)
-3. [ ] ระบบวัน / โควต้าของ boss
+3. [x] Phase 1: เครน + กล้อง 360° + วงเงานำทาง (รอทดสอบ)
+4. [ ] ระบบวัน / โควต้าของ boss
 4. [ ] Boss + dialogue box (พิมพ์ทีละตัวอักษร)
 5. [ ] PS1 look (แสงมืด, SpotLight, fog, PSX shader)
 6. [ ] เสียง, polish UI, ฟอนต์

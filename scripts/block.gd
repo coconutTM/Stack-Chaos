@@ -62,6 +62,12 @@ func top_y() -> float:
 	return (_mesh.global_transform * _mesh.get_aabb()).end.y
 
 
+# รัศมีรอยเท้าคร่าวๆ บนระนาบ XZ (ใช้ขนาดวงนำทางใต้ชิ้นที่ถือ)
+func footprint_radius() -> float:
+	var bb := _mesh.global_transform * _mesh.get_aabb()
+	return maxf(bb.size.x, bb.size.z) * 0.5
+
+
 func _physics_process(delta: float) -> void:
 	if not released:
 		return

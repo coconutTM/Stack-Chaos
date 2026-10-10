@@ -11,10 +11,13 @@ const WIN_HEIGHT := 7.5   # กองสูงถึงเท่านี้ (�
 const MAX_PIECES := 10    # ของให้ใช้แค่นี้ชิ้น (นับทุกชิ้นที่ spawn แม้จะหลุด) ใช้ครบแล้วยังไม่ถึง WIN_HEIGHT = แพ้
 const RESTART_DELAY := 0.3  # หน่วงหลังจบเกมกี่วินาทีก่อนรับคลิกเริ่มใหม่ (กันเผลอคลิกข้าม)
 
-@onready var camera: Camera3D = $Camera3D
+@onready var camera: OrbitCamera = $Camera3D
 @onready var blocks_root: Node3D = $Blocks
 @onready var score_label: Label = $UI/ScoreLabel
 @onready var game_over_label: Label = $UI/GameOverLabel
+
+var crane: Crane
+var guide: DropGuide
 
 var state := State.HOLDING
 var current: Block
@@ -28,20 +31,27 @@ var _over_at_msec := 0   # เวลา (ms) ที่เกมจบ ใช้�
 
 
 func _ready() -> void:
-	camera.position = Vector3(0, 9, 8)
-	camera.rotation_degrees = Vector3(-45, 0, 0)
+	crane = Crane.new()
+	add_child(crane)
+	guide = DropGuide.new()
+	add_child(guide)
+	camera.tapped.connect(_on_camera_tapped)
 	game_over_label.hide()
 	spawn_block()
 	update_ui()
 
 
 func _process(delta: float) -> void:
-	# กล้องค่อยๆ เลื่อนขึ้นตามความสูงของกอง
-	var target := Vector3(0, tower_top + 9.0, 8.0)
-	camera.position = camera.position.lerp(target, 1.0 - exp(-3.0 * delta))
+	# กล้องโคจร/ตามความสูงกองเอง (orbit_camera.gd) / ที่นี่แค่บอกความสูงเป้าหมาย
+	camera.target_y = tower_top
 
-	if state == State.HOLDING:
+	var holding := state == State.HOLDING
+	# ระหว่างลากหมุนกล้องไม่ต้องให้ชิ้นที่ถือวิ่งตามเมาส์
+	if holding and not camera.dragging:
 		move_held_block()
+
+	crane.update_crane(camera.yaw, current if holding else null, tower_top + HOLD_GAP, delta)
+	guide.target = current if holding else null
 
 
 func _physics_process(delta: float) -> void:
@@ -96,12 +106,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			current.release()
 			state = State.WAITING
 			wait_time = 0.0
-		MOUSE_BUTTON_RIGHT:       # คลิกขวา = พลิกตะแคง 90°
-			current.rotate_z(deg_to_rad(90))
 		MOUSE_BUTTON_WHEEL_UP:    # ลูกกลิ้ง = หมุน 45°
 			current.rotate_y(deg_to_rad(45))
 		MOUSE_BUTTON_WHEEL_DOWN:
 			current.rotate_y(deg_to_rad(-45))
+
+
+# คลิกขวาสั้นๆ (ไม่ลาก) = พลิกชิ้นที่ถือตะแคง 90° / ลากค้าง = หมุนกล้อง (orbit_camera.gd)
+func _on_camera_tapped() -> void:
+	if state == State.HOLDING:
+		current.rotate_z(deg_to_rad(90))
 
 
 # ไปชิ้นถัดไปถ้ายังมีของเหลือ ไม่งั้นใช้ของครบ MAX_PIECES แล้วยังไม่ถึง WIN_HEIGHT = แพ้
