@@ -4,6 +4,7 @@ extends RigidBody3D
 # ชนิดของบล็อก ⇄ ชื่อ scene ใน scenes/blocks/ (ดู Kind.SCENES)
 enum Kind { CRATE, PLANK, FRIDGE, BARREL, TIRE, SQUARE, CYLINDER }
 const KIND_COUNT := 7
+const KIND_NAMES := ["CRATE", "PLANK", "FRIDGE", "BARREL", "TIRE", "SQUARE", "PIPE"]   # เรียงตาม Kind (ใช้โชว์ใน UI)
 
 # ความหนืดที่ทำให้บล็อกที่ชิดกัน "ติด" กันเล็กน้อยคล้ายสไลม์ (หน่วง relative velocity
 # ของคู่ที่สัมผัสกันอยู่ ไม่ใช่แรงดึงดูดข้ามที่ว่าง) ยิ่งค่าสูง ยิ่งหนืด/กองง่ายขึ้น
@@ -23,15 +24,19 @@ const SCENES := {
 	Kind.CYLINDER: preload("res://scenes/blocks/block_cylinder.tscn"),
 }
 
+var kind := 0           # ชนิดของบล็อก (Kind) ตั้งโดย spawn()
+var taped := false      # โดน Duct Tape ติดตายกับกองแล้ว
+var weighted := false   # โดน Counterweight (มวล x3) แล้ว
 var released := false   # ถูกปล่อยลงมาแล้วหรือยัง
 var settled := false    # นิ่งแล้วหรือยัง
 var _still_time := 0.0
 var _mesh: MeshInstance3D
 
 
-# สร้าง instance ของบล็อกชนิด kind จาก scene ที่สอดคล้องกัน
-static func spawn(kind: int) -> Block:
-	var blk: Block = SCENES[kind].instantiate()
+# สร้าง instance ของบล็อกชนิด which จาก scene ที่สอดคล้องกัน
+static func spawn(which: int) -> Block:
+	var blk: Block = SCENES[which].instantiate()
+	blk.kind = which
 	return blk
 
 
@@ -67,6 +72,82 @@ func freeze_in_place() -> void:
 # ความสูงของขอบบนสุดของบล็อกนี้ (คิดตามการหมุนจริง)
 func top_y() -> float:
 	return (_mesh.global_transform * _mesh.get_aabb()).end.y
+
+
+# Item: Counterweight — ชิ้นนี้หนักขึ้น mult เท่า (inertia คำนวณใหม่เองตามมวล) + เรืองสีส้มให้เห็น
+func add_counterweight(mult := 3.0) -> void:
+	if weighted:
+		return
+	weighted = true
+	mass *= mult
+	_glow(Color(0.85, 0.35, 0.0))
+
+
+# Item: Duct Tape — เชื่อมชิ้นนี้ติดตายกับทุกชิ้นที่แตะอยู่ (และกับพื้นถ้าแตะพื้น) ด้วย joint ที่ล็อกทุกแกน
+func weld() -> void:
+	if taped:
+		return
+	taped = true
+	var joints := 0
+	var touches_world := false
+	for body in get_colliding_bodies():
+		var other := body as Block
+		if other == null:
+			touches_world = true   # ไม่ใช่บล็อก = พื้น
+		elif other.released:
+			_add_weld_joint(other)
+			joints += 1
+	if touches_world:
+		_add_weld_joint(null)
+		joints += 1
+	if joints == 0:
+		freeze_in_place()   # ไม่เจออะไรให้เชื่อมเลย (ไม่น่าเกิด) อย่างน้อยก็ปักไว้กับที่
+	_add_tape_band()
+
+
+# joint ล็อกทุกแกนที่ตำแหน่งชิ้นนี้ / other = null คือยึดกับโลก / ใส่ไว้ที่ parent ไม่ใช่ลูกของ body
+# (joint ของ Jolt ไม่ตามตำแหน่ง node ที่ขยับหลังสร้าง)
+func _add_weld_joint(other: Block) -> void:
+	var j := Generic6DOFJoint3D.new()
+	get_parent().add_child(j)
+	j.global_position = global_position
+	j.node_a = j.get_path_to(self)
+	if other != null:
+		j.node_b = j.get_path_to(other)
+	for axis in ["x", "y", "z"]:
+		j.call("set_flag_" + axis, Generic6DOFJoint3D.FLAG_ENABLE_LINEAR_LIMIT, true)
+		j.call("set_param_" + axis, Generic6DOFJoint3D.PARAM_LINEAR_LOWER_LIMIT, 0.0)
+		j.call("set_param_" + axis, Generic6DOFJoint3D.PARAM_LINEAR_UPPER_LIMIT, 0.0)
+		j.call("set_flag_" + axis, Generic6DOFJoint3D.FLAG_ENABLE_ANGULAR_LIMIT, true)
+		j.call("set_param_" + axis, Generic6DOFJoint3D.PARAM_ANGULAR_LOWER_LIMIT, 0.0)
+		j.call("set_param_" + axis, Generic6DOFJoint3D.PARAM_ANGULAR_UPPER_LIMIT, 0.0)
+
+
+# แถบเทปสีเงินรอบกลางชิ้น (ให้เห็นว่าติดเทปแล้ว)
+func _add_tape_band() -> void:
+	var bb := _mesh.get_aabb()
+	var band := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(bb.size.x + 0.06, maxf(0.1, bb.size.y * 0.14), bb.size.z + 0.06)
+	band.mesh = box
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.78, 0.78, 0.8)
+	m.roughness = 0.4
+	band.material_override = m
+	band.position = _mesh.position + bb.get_center()
+	add_child(band)
+
+
+# เปลี่ยนสี emission ของชิ้นนี้ (copy material ก่อน เพราะ material ใน scene แชร์กันทุก instance)
+func _glow(color: Color) -> void:
+	var m := _mesh.material_override as StandardMaterial3D
+	if m == null:
+		return
+	m = m.duplicate()
+	m.emission_enabled = true
+	m.emission = color
+	m.emission_energy_multiplier = 0.7
+	_mesh.material_override = m
 
 
 # รัศมีรอยเท้าคร่าวๆ บนระนาบ XZ (ใช้ขนาดวงนำทางใต้ชิ้นที่ถือ)

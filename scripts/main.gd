@@ -19,10 +19,13 @@ const RESTART_DELAY := 0.3  # หน่วงหลังขึ้นหน้�
 var crane: Crane
 var guide: DropGuide
 var dialogue: DialogueBox
+var item_bar: ItemBar
+var items: ItemSystem
 var bag := PieceBag.new()
 
 var state := State.TITLE
 var current: Block
+var last_settled: Block     # ชิ้นล่าสุดที่นิ่ง (เป้าหมายของ Duct Tape)
 var day := 1
 var quota_height := 0.0
 var max_pieces := 0
@@ -45,6 +48,10 @@ func _ready() -> void:
 	add_child(guide)
 	dialogue = DialogueBox.new()
 	add_child(dialogue)
+	items = ItemSystem.new(self)
+	item_bar = ItemBar.new()
+	add_child(item_bar)
+	item_bar.slot_pressed.connect(items.use_slot)
 	camera.tapped.connect(_on_camera_tapped)
 
 	score_label.add_theme_font_size_override("font_size", 11)
@@ -64,6 +71,7 @@ func _process(delta: float) -> void:
 
 	crane.update_crane(camera.yaw, current if holding else null, tower_top + HOLD_GAP, delta)
 	guide.target = current if holding else null
+	_refresh_items()
 
 
 func _physics_process(delta: float) -> void:
@@ -76,13 +84,17 @@ func _physics_process(delta: float) -> void:
 			continue
 		var was_current := b == current
 		b.queue_free()
-		failed_attempts += 1
-		update_ui()
-		if failed_attempts >= GameData.MAX_FAILS:
-			_end_day(false, "fails")
-			return
-		_comment("tutorial_fail" if _is_tutorial() else "fail")
+		if items.consume_insurance():
+			_comment("insured")   # ประกันจ่าย: ชิ้นนี้ไม่นับว่าหลุด (ยังนับเป็นชิ้นที่ใช้ไปแล้ว)
+		else:
+			failed_attempts += 1
+			update_ui()
+			if failed_attempts >= GameData.MAX_FAILS:
+				_end_day(false, "fails")
+				return
+			_comment("tutorial_fail" if _is_tutorial() else "fail")
 		if was_current:
+			_reset_time()
 			# ชิ้นที่ปล่อยไปหลุดตอนยังไม่ทันนิ่ง ไม่นับคะแนน ไปต่อชิ้นใหม่เลย (ถ้ายังมีของเหลือ)
 			# current ถูก queue_free แล้ว ห้ามแตะต่อในเฟรมนี้ จึง return ทันที
 			_advance_or_end()
@@ -93,6 +105,8 @@ func _physics_process(delta: float) -> void:
 		wait_time += delta
 		if current.settled or wait_time > MAX_WAIT:
 			current.settled = true
+			last_settled = current
+			_reset_time()
 			score += 1
 			recalc_tower_top()
 			update_ui()
@@ -123,6 +137,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					current.release()
 					state = State.WAITING
 					wait_time = 0.0
+					if items.coffee_pending:
+						Engine.time_scale = 0.5   # Coffee: สโลว์ 50% จนชิ้นนี้นิ่ง
 					if _is_tutorial() and not _first_drop_said:
 						_first_drop_said = true
 						_comment("tutorial_drop")
@@ -143,6 +159,7 @@ func _on_camera_tapped() -> void:
 func _start_run() -> void:
 	day = 1
 	score = 0
+	items.reset_run()
 	game_over_label.hide()
 	_start_day()
 
@@ -155,6 +172,9 @@ func _start_day() -> void:
 	for b in blocks_root.get_children():
 		b.queue_free()
 	current = null
+	last_settled = null
+	_reset_time()
+	items.reset_day()
 	tower_top = 0.0
 	best_height = 0.0
 	failed_attempts = 0
@@ -167,12 +187,21 @@ func _start_day() -> void:
 
 	state = State.DIALOGUE
 	await dialogue.say(_lines(Dialogue.DAY_INTRO[day]))
+
+	# boss แจก item สุ่มตอนต้นวัน
+	var given := items.grant_daily()
+	var give_lines: Array = Dialogue.ITEM_GIVE_FIRST if day == 1 else Dialogue.ITEM_GIVE
+	if not given.names.is_empty():
+		await dialogue.say(_lines(give_lines, {"items": ", ".join(given.names)}))
+	if given.overflow > 0:
+		await dialogue.say(_lines(Dialogue.ITEM_FULL))
 	spawn_block()
 
 
 # จบวัน: ผ่าน → boss พูด → วันต่อไป (หรือฉากจบ) / ไม่ผ่าน → โดนไล่ออก
 func _end_day(passed: bool, reason := "") -> void:
 	state = State.DIALOGUE
+	_reset_time()
 	for b in blocks_root.get_children():
 		var blk := b as Block
 		if blk:
@@ -198,6 +227,7 @@ func _end_day(passed: bool, reason := "") -> void:
 
 func _show_title() -> void:
 	state = State.TITLE
+	_reset_time()
 	for b in blocks_root.get_children():
 		b.queue_free()
 	current = null
@@ -228,12 +258,33 @@ func _advance_or_end() -> void:
 
 func spawn_block() -> void:
 	pieces_used += 1
-	current = Block.spawn(bag.next())
-	# ตั้งตำแหน่งก่อน add_child ไม่ให้ชิ้นเทเลพอร์ตจาก (0,0,0) ขึ้นมา (blocks_root อยู่ที่จุดกำเนิด)
-	current.position = Vector3(0, tower_top + HOLD_GAP, 0)
-	blocks_root.add_child(current)
+	_make_current(Vector3(0, tower_top + HOLD_GAP, 0))
 	state = State.HOLDING
 	update_ui()
+
+
+# สร้างชิ้นที่ถือจากถุง / ตั้งตำแหน่งก่อน add_child ไม่ให้ชิ้นเทเลพอร์ตจาก (0,0,0) ขึ้นมา (blocks_root อยู่ที่จุดกำเนิด)
+func _make_current(pos: Vector3) -> void:
+	current = Block.spawn(bag.next())
+	current.position = pos
+	blocks_root.add_child(current)
+
+
+# Item: Swap Bag — เปลี่ยนชิ้นที่ถือเป็นชิ้นอื่น (ไม่นับเป็นชิ้นที่ใช้เพิ่ม) / คืนชิ้นเดิมกลับถุง
+func swap_current() -> bool:
+	if state != State.HOLDING or current == null:
+		return false
+	var old := current
+	bag.give_back(old.kind)
+	old.queue_free()
+	_make_current(old.position)
+	return true
+
+
+# คืนเวลาเป็นปกติ + ล้างผลกาแฟ (เรียกเมื่อชิ้นนิ่ง / จบวัน / ชิ้นหลุด)
+func _reset_time() -> void:
+	Engine.time_scale = 1.0
+	items.coffee_pending = false
 
 
 func move_held_block() -> void:
@@ -289,9 +340,9 @@ func _comment(key: String) -> void:
 	dialogue.comment(_lines([pool.pick_random()])[0])
 
 
-# แทนตัวแปร {quota} ฯลฯ ในบทพูด
-func _lines(lines: Array) -> Array:
-	return Dialogue.fmt(lines, {
+# แทนตัวแปร {quota} ฯลฯ ในบทพูด / extra = ตัวแปรเพิ่มเฉพาะที่ (เช่น {items})
+func _lines(lines: Array, extra := {}) -> Array:
+	var vars := {
 		"day": day,
 		"days": GameData.DAYS.size(),
 		"quota": "%.1f" % quota_height,
@@ -299,7 +350,32 @@ func _lines(lines: Array) -> Array:
 		"height": "%.1f" % tower_top,
 		"fails": failed_attempts,
 		"max_fails": GameData.MAX_FAILS,
-	})
+	}
+	vars.merge(extra)
+	return Dialogue.fmt(lines, vars)
+
+
+# ส่งสถานะ item ไปแถบ UI (ข้ามเองถ้าไม่มีอะไรเปลี่ยน)
+func _refresh_items() -> void:
+	var playing := state == State.HOLDING or state == State.WAITING
+	item_bar.visible = playing
+	if not playing:
+		return
+
+	var parts: Array[String] = []
+	if items.coffee_pending:
+		parts.append("COFFEE: SLOW-MO" if state == State.WAITING else "COFFEE READY")
+	if items.insurance > 0:
+		parts.append("INSURED x%d" % items.insurance)
+
+	var next_text := ""
+	if items.clipboard:
+		var names: Array[String] = []
+		for k in bag.peek(3):
+			names.append(Block.KIND_NAMES[k])
+		next_text = "NEXT:\n" + "\n".join(names)
+
+	item_bar.refresh(items.inventory, state == State.HOLDING, "  ".join(parts), next_text)
 
 
 func update_ui() -> void:

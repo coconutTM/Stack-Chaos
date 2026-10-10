@@ -4,6 +4,7 @@ extends CanvasLayer
 # กล่องข้อความของ boss: เงาร่างมืดๆ + ตาเรืองแสง พูดแบบพิมพ์ทีละตัวอักษร
 # - say(lines)    โหมดบล็อก: คลิกซ้ายเพื่อข้ามการพิมพ์ / ไปบรรทัดถัดไป (ใช้ await ได้)
 # - comment(text) โหมดคอมเมนต์: ไม่บล็อกเกม โผล่มาแล้วหุบเองใน COMMENT_HOLD วินาที
+#   (อยู่ด้านบนจอ เว้นที่ให้ HUD ซ้ายบน เพื่อไม่บังแถบ item ด้านล่าง)
 
 signal finished   # say() อ่านครบทุกบรรทัดแล้ว
 signal blip       # ทุกครั้งที่พิมพ์ตัวอักษรเพิ่ม (Phase 6 เอาไปเล่นเสียงพึมพำ)
@@ -11,6 +12,7 @@ signal blip       # ทุกครั้งที่พิมพ์ตัวอ
 const CHARS_PER_SEC := 45.0
 const COMMENT_HOLD := 2.5     # คอมเมนต์ค้างหลังพิมพ์ครบกี่วินาที
 const PANEL_H := 76.0
+const COMMENT_LEFT := 118.0   # โหมดคอมเมนต์เริ่มกล่องหลังพ้น HUD ซ้ายบน (px)
 const FONT_SIZE := 11
 const EYE_COLOR := Color(1.0, 0.85, 0.2)
 
@@ -37,11 +39,8 @@ func _ready() -> void:
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.anchor_left = 0.0
 	_panel.anchor_right = 1.0
-	_panel.anchor_top = 1.0
-	_panel.anchor_bottom = 1.0
-	_panel.offset_top = -PANEL_H
-	_panel.offset_bottom = 0.0
 	add_child(_panel)
+	_place(false)
 
 	_rect(_panel, Rect2(0, 0, 0, 0), Color(0.02, 0.02, 0.04, 0.93)).set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var border := _rect(_panel, Rect2(0, 0, 0, 1), Color(0.55, 0.45, 0.1))
@@ -84,6 +83,7 @@ func say(lines: Array) -> void:
 		return
 	_blocking = true
 	_comment_left = 0.0
+	_place(false)
 	_lines = lines
 	_idx = 0
 	_show_text(_lines[0])
@@ -95,7 +95,18 @@ func comment(text: String) -> void:
 	if _blocking:
 		return
 	_comment_left = COMMENT_HOLD
+	_place(true)
 	_show_text(text)
+
+
+# top = true: คอมเมนต์ด้านบน (เริ่มหลัง HUD) / false: บทพูดเต็มความกว้างด้านล่าง
+func _place(top: bool) -> void:
+	_panel.anchor_top = 0.0 if top else 1.0
+	_panel.anchor_bottom = 0.0 if top else 1.0
+	_panel.offset_top = 0.0 if top else -PANEL_H
+	_panel.offset_bottom = PANEL_H if top else 0.0
+	_panel.offset_left = COMMENT_LEFT if top else 0.0
+	_panel.offset_right = 0.0
 
 
 func is_busy() -> bool:

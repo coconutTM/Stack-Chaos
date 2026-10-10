@@ -2,7 +2,7 @@ class_name Dialogue
 extends RefCounted
 
 # บทพูดทั้งหมดของ boss (ภาษาอังกฤษ เพราะฟอนต์ไม่มีอักษรไทย) / แก้บทที่นี่ที่เดียว
-# ตัวแปรในข้อความใช้ได้: {day} {days} {quota} {pieces} {height} {fails} {max_fails}
+# ตัวแปรในข้อความใช้ได้: {day} {days} {quota} {pieces} {height} {fails} {max_fails} {items}
 
 # ตอนต้นวัน (สั่งงาน) — วันที่ 1 เป็น tutorial
 const DAY_INTRO := {
@@ -35,6 +35,19 @@ const DAY_INTRO := {
 		"Do this and you'll see what the job really is.",
 	],
 }
+
+# แจก item ต้นวัน (หลัง DAY_INTRO) — วันที่ 1 มีสอนใช้ / {items} = ชื่อ item ที่ได้
+const ITEM_GIVE_FIRST := [
+	"Here. Two tools of the trade: {items}.",
+	"Click an item on the bar below to use it. Point at it to read what it does.",
+	"Use them well. I don't hand out many.",
+]
+const ITEM_GIVE := [
+	"Supplies: {items}.",
+]
+const ITEM_FULL := [
+	"Your bag is full. I'll keep the rest.",
+]
 
 # ท้ายวัน — ผ่าน (วันที่ 5 ตามด้วย ENDING)
 const DAY_PASS := {
@@ -71,6 +84,7 @@ const COMMENTS := {
 	"tutorial_fail": ["That one's gone. Careful with the edge."],
 	"fail": ["There goes another one.", "Watch the edge.", "Was that on purpose?"],
 	"collapse": ["The whole pile just moved.", "Hm. It's falling apart.", "Is that what you call stacking?"],
+	"insured": ["Covered. This time.", "The company pays for that one. Once."],
 	"near": ["Almost there.", "A little more.", "Don't blow it now."],
 }
 

@@ -26,7 +26,7 @@
 - เกมอ้างอิง: Super Stacker 2, Tower Bloxx, Stack
 
 > **สถานะ (หลัง Phase 2):** มีเครน + กล้อง 360°, ระบบ 5 วัน/โควต้า, boss พูดแบบพิมพ์ทีละตัว (เงาร่าง + ตาเรืองแสง),
-> หน้า title / โดนไล่ออก / จบเกม / tutorial วันที่ 1 / สุ่มขยะแบบ bag — **ยังไม่มี** item, PS1 look, เสียง / ดู [Roadmap](#8-roadmap)
+> หน้า title / โดนไล่ออก / จบเกม / tutorial วันที่ 1 / สุ่มขยะแบบ bag / item 6 ชนิดแบบ Buckshot Roulette — **ยังไม่มี** PS1 look, เสียง / ดู [Roadmap](#8-roadmap)
 
 ---
 
@@ -120,6 +120,20 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 
 **สุ่มขยะ:** `scripts/piece_bag.gd` (`PieceBag`) — ถุงที่ใส่ทุก `Block.Kind` อย่างละชิ้น สลับแล้วหยิบ หมดค่อยเติม
 (ชิ้นแรกของถุงใหม่ไม่ซ้ำชิ้นสุดท้ายของถุงเก่า)
+
+**Item (Phase 3):** boss แจก `ItemData.GIVE_PER_DAY` (2) ชิ้นหลังบทต้นวัน เก็บได้ `MAX_SLOTS` (6) ช่อง ล้นถูกทิ้ง
+(คลังค้างข้ามวัน รีเซ็ตเมื่อเริ่มรอบใหม่) / ใช้ได้เฉพาะตอน `HOLDING`
+- `data/items.gd` (`ItemData`) — ข้อมูล item (ชื่อ, ชื่อสั้นบนปุ่ม, `weight` ความน่าจะเป็น, คำอธิบาย, ข้อความตอนใช้ไม่ได้)
+- `scripts/item_system.gd` (`ItemSystem`) — คลัง + ผลของ item เป็นเมธอด `_use_<id>()` (คืน `true` = ใช้สำเร็จ/หมดไป)
+  **เพิ่ม item ใหม่ = เพิ่ม entry ใน `ItemData.ITEMS` + เขียนเมธอด `_use_<id>()` ไม่ต้องแก้ที่อื่น**
+- `scripts/item_bar.gd` (`ItemBar`) — แถบ 6 ช่องด้านล่าง (ชี้เมาส์อ่านคำอธิบาย), บรรทัดสถานะ, รายการ 3 ชิ้นถัดไปมุมขวาบน
+  ปุ่มของแถบกินคลิกเอง (`mouse_filter` STOP) จึงไม่ไปปล่อยบล็อก / `main.gd` เรียก `_refresh_items()` ทุกเฟรม
+- ผลของแต่ละ item: **Duct Tape** `Block.weld()` สร้าง `Generic6DOFJoint3D` ล็อกทุกแกนกับทุกชิ้นที่แตะ (และโลกถ้าแตะพื้น)
+  ใส่ joint ไว้ที่ parent ของบล็อก ไม่ใช่ลูก / **Coffee** `Engine.time_scale = 0.5` ตั้งตอนปล่อยชิ้น คืนเป็น 1.0 ตอนนิ่ง
+  (`_reset_time()`) / **Swap Bag** `swap_current()` คืนชิ้นเดิมกลับท้ายคิว `PieceBag.give_back()` ไม่นับเป็นชิ้นที่ใช้เพิ่ม /
+  **Counterweight** `Block.add_counterweight()` mass x3 / **Clipboard** `PieceBag.peek(3)` / **Insurance**
+  `consume_insurance()` ถูกเรียกในลูปหลุดขอบก่อนนับ `failed_attempts` (ชิ้นยังนับเป็นที่ใช้ไปแล้ว)
+- คอมเมนต์ของ boss ตอนนี้อยู่ด้านบนจอ (เริ่มหลัง HUD) ส่วนบทพูดบล็อกอยู่ด้านล่าง เพื่อไม่บังแถบ item
 
 **boss UI:** `scripts/dialogue_box.gd` (`DialogueBox`, CanvasLayer) — `say(lines)` โหมดบล็อก (คลิกเพื่อข้ามพิมพ์/ไปต่อ),
 `comment(text)` โหมดไม่บล็อก, signal `blip` ไว้ผูกเสียงใน Phase 6 / สร้าง UI ด้วยโค้ดทั้งหมด
@@ -223,6 +237,7 @@ Main (Node3D)                ← scripts/main.gd
 | Input | ผล |
 | --- | --- |
 | ขยับเมาส์ | เลื่อนตำแหน่งบล็อกที่ถืออยู่ |
+| คลิกซ้ายที่ช่องบนแถบ item | ใช้ item นั้น (ตอนถือบล็อกอยู่) |
 | คลิกซ้าย | ปล่อยบล็อก / ข้ามการพิมพ์และไปบรรทัดถัดไปตอน boss พูด / กดต่อบนหน้า title, fired, ending |
 | คลิกขวา (สั้น ไม่ลาก) | พลิกตะแคง 90° รอบแกน Z |
 | คลิกขวาค้าง + ลาก | หมุนกล้องรอบกอง 360° (ชิ้นที่ถือจะไม่ตามเมาส์ระหว่างลาก) |
@@ -292,7 +307,7 @@ Main (Node3D)                ← scripts/main.gd
 2. [x] Phase 0: แก้ HUD, รวมบล็อก SQUARE/CYLINDER, freeze ตอนจบเกม, export เว็บผ่านแล้ว (ยังต้องทดสอบรันบนเบราว์เซอร์/itch.io จริง)
 3. [x] Phase 1: เครน + กล้อง 360° + วงเงานำทาง (รอทดสอบ)
 4. [x] Phase 2: ระบบ 5 วัน/โควต้า + boss dialogue + tutorial + title/fired/ending + bag (รอทดสอบ)
-5. [ ] Phase 3: item แบบ Buckshot Roulette
+5. [x] Phase 3: item 6 ชนิดแบบ Buckshot Roulette (รอทดสอบ)
 6. [ ] Phase 4: PS1 look (แสงมืด, SpotLight, fog, PSX shader)
 7. [ ] Phase 5: day modifier + ขยะพิเศษ / Phase 6: เสียง, polish UI, ฟอนต์
 8. [ ] Phase 7: อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ + README บน GitHub
