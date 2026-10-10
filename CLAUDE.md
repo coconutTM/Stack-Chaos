@@ -25,6 +25,8 @@
 - โครงสร้างเกมที่วางไว้: แต่ละ **"วัน"** boss ตั้งโควต้าความสูง → ถึงก็ผ่าน / ไม่ถึงหรือกองล้ม = โดนไล่ออก
 - เกมอ้างอิง: Super Stacker 2, Tower Bloxx, Stack
 
+> **(อัปเดต Phase 0 แล้ว: มีบล็อก 7 ชนิด, จบเกมแล้วฟิสิกส์หยุด, มี export preset เว็บ)**
+>
 > **ตอนนี้ยังเป็น prototype แกนเกมเท่านั้น** — ยังไม่มีระบบวัน/โควต้า, ยังไม่มี boss, ยังไม่มี dialogue,
 > ยังไม่ทำ PS1 look, ยังไม่มีเสียง / ดู [Roadmap](#8-roadmap)
 >
@@ -45,7 +47,7 @@
 | `default_texture_filter` | `0` (nearest) | texture ใหม่ต้องไม่ถูก filter / texture เล็ก 32–64 px |
 | 3D physics engine | **Jolt Physics** | เลือกเพราะทำให้การซ้อนของนิ่งกว่า Godot Physics เดิม |
 
-**ข้อจำกัดเรื่อง web export** (ยังไม่มี `export_presets.cfg` — ต้องตั้งเอง):
+**ข้อจำกัดเรื่อง web export** (มี `export_presets.cfg` preset "Web" แล้ว — single-threaded, export ไป `build/web/`, โฟลเดอร์ `build/` ถูก gitignore):
 - ต้องเป็น **single-threaded** (ปิด Thread Support) เพื่อลง itch.io ได้ง่าย
 - **ลอง export ขึ้นเว็บตั้งแต่เนิ่นๆ** อย่ารอจนจบ
 - **ข้อความ UI ทั้งหมดใช้ภาษาอังกฤษ** เพราะ default font ไม่มีอักษรไทย (โดยเฉพาะบนเว็บ)
@@ -63,6 +65,7 @@ Godot อยู่ใน PATH แล้ว: `/usr/bin/godot` เวอร์ช�
 ```bash
 godot --path .                      # รันเกม
 godot -e --path .                   # เปิดใน editor
+godot --headless --path . --export-release "Web" build/web/index.html   # export เว็บ
 godot --headless --path . --quit    # reimport asset / สร้าง .godot ใหม่ (ใช้เช็ค parse error ได้ด้วย)
 ```
 
@@ -96,6 +99,7 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 | `MAX_WAIT` | `5.0` | รอบล็อกนิ่งนานสุดกี่วินาที |
 | `MAX_FAILS` | `3` | หลุดกองครบกี่ชิ้นแล้วแพ้ |
 | `WIN_HEIGHT` | `7.5` | กองสูงถึงเท่านี้ (เมตร) = ชนะ |
+| `RESTART_DELAY` | `0.3` | หน่วงหลังจบเกมก่อนรับคลิกเริ่มใหม่ (วินาที) |
 | `MAX_PIECES` | `10` | ของให้ใช้ทั้งหมดกี่ชิ้น (นับทุกชิ้นที่ spawn แม้จะหลุด) ใช้ครบแล้วไม่ถึง `WIN_HEIGHT` = แพ้ |
 
 **เงื่อนไขแพ้ (`game_over()`) มี 2 ทาง — อย่างใดอย่างหนึ่งก็พอ:**
@@ -136,6 +140,8 @@ instance ถูก free แล้ว — โค้ดปัจจุบัน `r
 | `FRIDGE` | `block_fridge.tscn` | Box `1.0×1.8×0.9` | `5.0` | `0.3` / `0.6` |
 | `BARREL` | `block_barrel.tscn` | Cylinder r `0.5` h `1.1` | `2.5` | `0.4` / `1.8` |
 | `TIRE` | `block_tire.tscn` | Cylinder r `0.7` h `0.35` | `1.0` | `0.4` / `1.8` |
+| `SQUARE` | `block_square.tscn` | Box `0.9×0.9×0.9` | `2.0` | `0.3` / `0.6` |
+| `CYLINDER` | `block_cylinder.tscn` | Cylinder r `0.45` h `1.6` | `2.0` | `0.4` / `1.8` |
 
 Cylinder blocks (`BARREL`, `TIRE`) carry a much higher `angular_damp` (`1.8` vs `0.6`) because
 they **roll** — without strong damping a tipped barrel/tire keeps rolling almost indefinitely
@@ -240,9 +246,7 @@ Main (Node3D)                ← scripts/main.gd
 1. **ปรับ "ฟีล" ของบล็อก (ขนาด/สี/mass) ให้แก้ที่ `.tscn` ใน `scenes/blocks/` ไม่ใช่ใน `scripts/block.gd`**
    — ตั้งแต่เปลี่ยนมาใช้ scene ต่อชนิด โค้ดใน `block.gd` ไม่รู้จัก mesh/shape/mass ของแต่ละ `Kind`
    แล้ว (ดูหัวข้อ 4) ถ้าจะปรับ friction/bounce ของทุกบล็อกพร้อมกัน ไปแก้ `resources/block_physics.tres`
-2. **ไฟล์ในโฟลเดอร์นี้ไม่ได้อยู่ใน git เลย** — git root คือ `/home/coconut/Documents/gamedev`
-   และ `.gitignore` ของมันมี `/work/` อยู่ / `git status` จะว่างเปล่าเสมอ
-   → **อย่าอ่านว่า "working tree สะอาด" และอย่าเสนอ commit**
+2. **โปรเจกต์นี้อยู่ใน git แล้ว** (git root คือโฟลเดอร์นี้เอง) commit ตามที่ผู้ใช้สั่งได้ตามปกติ
 3. `.godot/` เป็น cache ที่ engine สร้างเอง และถูก gitignore — **ห้ามแก้มือ**
 4. `scripts/*.gd.uid` ผูกกับสคริปต์ของมัน และถูกอ้างผ่าน `uid://` ใน `.tscn`
    / ย้ายหรือเปลี่ยนชื่อสคริปต์ **ต้องขยับ `.uid` ไปด้วย** ไม่งั้น scene หาไฟล์ไม่เจอ
@@ -271,7 +275,7 @@ Main (Node3D)                ← scripts/main.gd
 ## 8. Roadmap
 
 1. [x] Prototype เล่นได้ (`main.gd` + `block.gd`)
-2. [ ] ลอง export ขึ้นเว็บ (single-threaded, itch.io) — **ควรทำเร็วๆ นี้ ยังไม่มี `export_presets.cfg`**
+2. [x] Phase 0: แก้ HUD, รวมบล็อก SQUARE/CYLINDER, freeze ตอนจบเกม, export เว็บผ่านแล้ว (ยังต้องทดสอบรันบนเบราว์เซอร์/itch.io จริง)
 3. [ ] ระบบวัน / โควต้าของ boss
 4. [ ] Boss + dialogue box (พิมพ์ทีละตัวอักษร)
 5. [ ] PS1 look (แสงมืด, SpotLight, fog, PSX shader)

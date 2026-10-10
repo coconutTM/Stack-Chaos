@@ -2,8 +2,8 @@ class_name Block
 extends RigidBody3D
 
 # ชนิดของบล็อก ⇄ ชื่อ scene ใน scenes/blocks/ (ดู Kind.SCENES)
-enum Kind { CRATE, PLANK, FRIDGE, BARREL, TIRE }
-const KIND_COUNT := 5
+enum Kind { CRATE, PLANK, FRIDGE, BARREL, TIRE, SQUARE, CYLINDER }
+const KIND_COUNT := 7
 
 # ความหนืดที่ทำให้บล็อกที่ชิดกัน "ติด" กันเล็กน้อยคล้ายสไลม์ (หน่วง relative velocity
 # ของคู่ที่สัมผัสกันอยู่ ไม่ใช่แรงดึงดูดข้ามที่ว่าง) ยิ่งค่าสูง ยิ่งหนืด/กองง่ายขึ้น
@@ -16,6 +16,8 @@ const SCENES := {
 	Kind.FRIDGE: preload("res://scenes/blocks/block_fridge.tscn"),
 	Kind.BARREL: preload("res://scenes/blocks/block_barrel.tscn"),
 	Kind.TIRE: preload("res://scenes/blocks/block_tire.tscn"),
+	Kind.SQUARE: preload("res://scenes/blocks/block_square.tscn"),
+	Kind.CYLINDER: preload("res://scenes/blocks/block_cylinder.tscn"),
 }
 
 var released := false   # ถูกปล่อยลงมาแล้วหรือยัง
@@ -47,6 +49,12 @@ func release() -> void:
 	released = true
 	_still_time = 0.0
 	freeze = false  # เริ่มให้ฟิสิกส์ทำงาน
+
+
+# หยุดฟิสิกส์ของชิ้นนี้ค้างไว้ตรงนั้น (ใช้ตอนจบเกม ไม่ให้กลิ้งต่อ)
+func freeze_in_place() -> void:
+	freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	freeze = true
 
 
 # ความสูงของขอบบนสุดของบล็อกนี้ (คิดตามการหมุนจริง)

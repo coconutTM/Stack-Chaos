@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://b68m3wan8pbif"]
+
+[ext_resource type="Script" uid="uid://b6ii1x0rv0eof" path="res://scripts/block.gd" id="1_script"]
+[ext_resource type="PhysicsMaterial" uid="uid://culdnuwg6uca6" path="res://resources/block_physics.tres" id="2_phys"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_square"]
+size = Vector3(0.9, 0.9, 0.9)
+
+[sub_resource type="StandardMaterial3D" id="Material_square"]
+albedo_color = Color(0.3, 0.3, 0.33, 1)
+roughness = 1.0
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_square"]
+size = Vector3(0.9, 0.9, 0.9)
+
+[node name="BlockSquare" type="RigidBody3D"]
+mass = 2.0
+linear_damp = 0.3
+angular_damp = 0.6
+physics_material_override = ExtResource("2_phys")
+script = ExtResource("1_script")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+material_override = SubResource("Material_square")
+mesh = SubResource("BoxMesh_square")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_square")

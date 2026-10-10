@@ -9,6 +9,7 @@ const MAX_WAIT := 5.0     # รอบล็อกนิ่งนานสุด�
 const MAX_FAILS := 3      # หลุดกองครบกี่ชิ้น = แพ้ (ไม่เว้นฐาน ชิ้นแรกก็นับเหมือนกัน)
 const WIN_HEIGHT := 7.5   # กองสูงถึงเท่านี้ (เมตร) ก่อนของหมด = ชนะ
 const MAX_PIECES := 10    # ของให้ใช้แค่นี้ชิ้น (นับทุกชิ้นที่ spawn แม้จะหลุด) ใช้ครบแล้วยังไม่ถึง WIN_HEIGHT = แพ้
+const RESTART_DELAY := 0.3  # หน่วงหลังจบเกมกี่วินาทีก่อนรับคลิกเริ่มใหม่ (กันเผลอคลิกข้าม)
 
 @onready var camera: Camera3D = $Camera3D
 @onready var blocks_root: Node3D = $Blocks
@@ -23,6 +24,7 @@ var pieces_used := 0
 var won := false
 var tower_top := 0.0
 var wait_time := 0.0
+var _over_at_msec := 0   # เวลา (ms) ที่เกมจบ ใช้คุม RESTART_DELAY
 
 
 func _ready() -> void:
@@ -81,7 +83,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if state == State.GAME_OVER:
-		if event.button_index == MOUSE_BUTTON_LEFT:
+		var elapsed := (Time.get_ticks_msec() - _over_at_msec) / 1000.0
+		if event.button_index == MOUSE_BUTTON_LEFT and elapsed >= RESTART_DELAY:
 			get_tree().reload_current_scene()
 		return
 
@@ -144,14 +147,24 @@ func recalc_tower_top() -> void:
 
 
 func update_ui() -> void:
-	score_label.text = "TOTALL TRASH: %d\nHEIGHT: %.1f m\nFAILS: %d/%d\nPIECES: %d/%d" % [
+	score_label.text = "TRASH: %d\nHEIGHT: %.1f m\nFAILS: %d/%d\nPIECES: %d/%d" % [
 		score, tower_top, failed_attempts, MAX_FAILS, pieces_used, MAX_PIECES
 	]
 
 
+# ใช้ร่วมกันทั้งชนะ/แพ้: เปลี่ยนสถานะ จับเวลา และหยุดฟิสิกส์ของทุกชิ้น
+func _end_game() -> void:
+	state = State.GAME_OVER
+	_over_at_msec = Time.get_ticks_msec()
+	for b in blocks_root.get_children():
+		var blk := b as Block
+		if blk:
+			blk.freeze_in_place()
+
+
 func win() -> void:
 	won = true
-	state = State.GAME_OVER
+	_end_game()
 	game_over_label.text = "QUOTA MET!\nHEIGHT: %.1f m\nPIECES USED: %d/%d\n\nclick to play again" % [
 		tower_top, pieces_used, MAX_PIECES
 	]
@@ -159,7 +172,7 @@ func win() -> void:
 
 
 func game_over() -> void:
-	state = State.GAME_OVER
+	_end_game()
 	game_over_label.text = "YOU'RE FIRED!\nHEIGHT: %.1f m\nDROPPED: %d PIECES\nUSED: %d/%d\n\nclick to retry" % [
 		tower_top, failed_attempts, pieces_used, MAX_PIECES
 	]
