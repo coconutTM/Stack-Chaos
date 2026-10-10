@@ -9,6 +9,7 @@ const HOLD_GAP := 1.8     # บล็อกที่ถือลอยเหน�
 const BOUND := 3.0        # ขอบเขตที่เลื่อนบล็อกได้ (ตามขนาดพื้น)
 const KILL_Y := -4.0      # ตกต่ำกว่านี้ = ถือว่าชิ้นนั้นหลุดจากกอง
 const MAX_WAIT := 5.0     # รอบล็อกนิ่งนานสุดกี่วินาที
+const HARD_IMPACT := 10.0   # impact เกินนี้ = กระแทกหนัก (เสียงหนัก + สั่นจอ + ฝุ่น) ดู Block.hit
 const RESTART_DELAY := 0.3  # หน่วงหลังขึ้นหน้าจบก่อนรับคลิก (กันเผลอคลิกข้าม)
 
 @onready var camera: OrbitCamera = $Camera3D
@@ -24,6 +25,7 @@ var item_bar: ItemBar
 var look: Ps1Look
 var modifiers: DayModifiers
 var screen_fx: ScreenFx
+var sfx: Sfx
 var items: ItemSystem
 var bag := PieceBag.new(GameData.kinds_for_day(1))
 
@@ -45,9 +47,18 @@ var _fragile_said := false
 var _first_drop_said := false
 var _comment_ready_at := 0   # เวลา (ms) ที่ boss คอมเมนต์ได้อีก
 var _screen_at_msec := 0     # เวลา (ms) ที่ขึ้นหน้าจบ ใช้คุม RESTART_DELAY
+var _motor := 0.0            # ระดับเสียงมอเตอร์เครน (ตามความเร็วที่ขยับชิ้นที่ถือ)
+var _last_hold_pos := Vector3.ZERO
 
 
 func _ready() -> void:
+	Settings.load_all()
+	GameTheme.apply(get_tree().root)
+	sfx = Sfx.new()
+	add_child(sfx)
+	add_child(SoundToggle.new())
+	sfx.set_loop("ambient", true, -10.0)
+	sfx.set_loop("motor", true, -80.0)
 	look = Ps1Look.new()
 	look.ground = ground
 	add_child(look)
@@ -66,12 +77,18 @@ func _ready() -> void:
 	items = ItemSystem.new(self)
 	item_bar = ItemBar.new()
 	add_child(item_bar)
-	item_bar.slot_pressed.connect(items.use_slot)
+	item_bar.slot_pressed.connect(_on_item_slot)
+	items.used.connect(func(ok: bool) -> void: sfx.play("item_use" if ok else "deny"))
+	dialogue.blip.connect(sfx.blip)
+	look.flickered.connect(func() -> void: sfx.play("buzz", -6.0))
+	modifiers.phase_changed.connect(_on_modifier_phase)
 	add_child(FpsOverlay.new())
 	camera.tapped.connect(_on_camera_tapped)
 
-	score_label.add_theme_font_size_override("font_size", 11)
-	game_over_label.add_theme_font_size_override("font_size", 14)
+	score_label.offset_left = 4.0   # เว้นขอบ (ฟอนต์ pixel ล้นขึ้นด้านบนเล็กน้อย)
+	score_label.offset_top = 5.0
+	score_label.add_theme_font_size_override("font_size", 8)   # Press Start 2P คมสุดที่พหุคูณของ 8
+	game_over_label.add_theme_font_size_override("font_size", 16)
 	game_over_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_show_title()
 
@@ -89,6 +106,7 @@ func _process(delta: float) -> void:
 		move_held_block()
 
 	crane.update_crane(camera.yaw, current if holding else null, tower_top + HOLD_GAP, delta)
+	_update_motor(holding, delta)
 	guide.target = current if holding else null
 	# มีกองแล้ว (มีชิ้นนิ่ง) → วงนำทางจะเตือนสีแดงถ้าจุดตกคือพื้น
 	guide.ground_is_fail = holding and _has_settled_piece(current)
@@ -164,6 +182,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			match event.button_index:
 				MOUSE_BUTTON_LEFT:        # คลิกซ้าย = ปล่อย
 					current.release()
+					sfx.play("release")
 					state = State.WAITING
 					wait_time = 0.0
 					if items.coffee_pending:
@@ -214,6 +233,7 @@ func _start_day() -> void:
 	_first_drop_said = false
 	bag = PieceBag.new(GameData.kinds_for_day(day))
 	modifiers.start(d.get("modifiers", []))
+	sfx.set_loop("rain", d.get("modifiers", []).has("rain"), -16.0)
 	_comment_ready_at = 0
 	score_label.show()
 	update_ui()
@@ -223,6 +243,8 @@ func _start_day() -> void:
 
 	# boss แจก item สุ่มตอนต้นวัน
 	var given := items.grant_daily()
+	if not given.names.is_empty():
+		sfx.play("item_get")
 	var give_lines: Array = Dialogue.ITEM_GIVE_FIRST if day == 1 else Dialogue.ITEM_GIVE
 	if not given.names.is_empty():
 		await dialogue.say(_lines(give_lines, {"items": ", ".join(given.names)}))
@@ -236,6 +258,7 @@ func _end_day(passed: bool, reason := "") -> void:
 	state = State.DIALOGUE
 	_reset_time()
 	modifiers.stop()
+	sfx.set_loop("rain", false)
 	for b in blocks_root.get_children():
 		var blk := b as Block
 		if blk:
@@ -247,6 +270,7 @@ func _end_day(passed: bool, reason := "") -> void:
 			fired_lines = Dialogue.FIRED_FAILS
 		elif reason == "fragile":
 			fired_lines = Dialogue.FIRED_FRAGILE
+		sfx.play("fired")
 		await dialogue.say(_lines(fired_lines))
 		_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nLOST: %d PIECES\n\nclick to start over" % [
 			day, tower_top, quota_height, failed_attempts
@@ -254,9 +278,13 @@ func _end_day(passed: bool, reason := "") -> void:
 		state = State.FIRED
 		return
 
+	sfx.play("pass")
 	await dialogue.say(_lines(Dialogue.DAY_PASS[day]))
 	if day >= GameData.DAYS.size():
 		await dialogue.say(_lines(Dialogue.ENDING))
+		await _ending_cinematic()
+		Settings.night_shift = true
+		Settings.save_all()
 		_show_screen("SHIFT COMPLETE\nTRASH STACKED: %d\n\nclick to return to title" % score)
 		state = State.ENDING
 	else:
@@ -264,16 +292,29 @@ func _end_day(passed: bool, reason := "") -> void:
 		_start_day()
 
 
+# ฉากจบ: จอมืดสนิท มีแต่ตาของผู้เล่นเรืองขึ้นกลางความมืด (boss หายไปแล้ว)
+func _ending_cinematic() -> void:
+	sfx.play("ending")
+	sfx.set_loop("ambient", false)
+	await screen_fx.fade_to_black(1.8)
+	await screen_fx.show_eyes(true, 1.0)
+	await get_tree().create_timer(3.5).timeout
+	screen_fx.clear(0.8)
+	sfx.set_loop("ambient", true, -10.0)
+
+
 func _show_title() -> void:
 	state = State.TITLE
 	_reset_time()
 	modifiers.stop()
+	sfx.set_loop("rain", false)
 	for b in blocks_root.get_children():
 		b.queue_free()
 	current = null
 	tower_top = 0.0
 	score_label.hide()
-	_show_screen("STACK CHAOS!\n\nclick to start")
+	var subtitle := "\n(night shift)" if Settings.night_shift else ""
+	_show_screen("STACK CHAOS!%s\n\nclick to start" % subtitle)
 
 
 func _show_screen(text: String) -> void:
@@ -294,9 +335,11 @@ func _screen_ready() -> bool:
 func _register_fail(key: String, fragile := false) -> bool:
 	camera.shake(0.45)
 	if items.consume_insurance():
+		sfx.play("insured")
 		_comment("insured")   # ประกันจ่าย: ชิ้นนี้ไม่นับว่าเสีย (ยังนับเป็นชิ้นที่ใช้ไปแล้ว)
 		return false
 	screen_fx.flash(Color(0.8, 0.05, 0.05), 0.3)
+	sfx.play("fail")
 	if fragile:
 		_end_day(false, "fragile")
 		return true
@@ -368,7 +411,8 @@ func _make_current(pos: Vector3) -> void:
 	current = Block.spawn(bag.next())
 	current.position = pos
 	blocks_root.add_child(current)
-	current.hit_hard.connect(_on_hit_hard.bind(current))
+	current.hit.connect(_on_hit.bind(current))
+	sfx.play("clunk", -6.0)
 	if current.fragile and not _fragile_said:
 		_fragile_said = true
 		_comment("fragile", true)
@@ -385,10 +429,39 @@ func swap_current() -> bool:
 	return true
 
 
-# ชิ้นกระแทกแรง: สั่นจอตามแรง + ฝุ่นฟุ้งที่จุดชน
-func _on_hit_hard(impact: float, blk: Block) -> void:
-	camera.shake(clampf(impact / 40.0, 0.12, 0.5))
-	Effects.puff(self, blk.global_position + Vector3(0, -0.3, 0))
+# ชิ้นกระแทก: เสียงตามแรง / ถ้าหนักพอ (HARD_IMPACT) สั่นจอ + ฝุ่นฟุ้งที่จุดชน
+func _on_hit(impact: float, blk: Block) -> void:
+	if impact >= HARD_IMPACT:
+		sfx.play("impact_heavy", linear_to_db(clampf(impact / 20.0, 0.4, 1.0)), randf_range(0.9, 1.1))
+		camera.shake(clampf(impact / 40.0, 0.12, 0.5))
+		Effects.puff(self, blk.global_position + Vector3(0, -0.3, 0))
+	else:
+		sfx.play("impact_light", linear_to_db(clampf(impact / 10.0, 0.25, 1.0)), randf_range(0.9, 1.15))
+
+
+func _on_item_slot(index: int) -> void:
+	sfx.play("ui_click")
+	items.use_slot(index)
+
+
+# เสียงตัวปรับของวัน: เตือนก่อน แล้วเสียงลม/ครืนตอนเกิดจริง
+func _on_modifier_phase(kind: String, phase: int) -> void:
+	if phase == DayModifiers.Phase.WARN:
+		sfx.play("warn")
+	elif phase == DayModifiers.Phase.ACTIVE:
+		sfx.play("wind" if kind == "wind" else "rumble")
+
+
+# มอเตอร์เครนดังตามความเร็วที่ขยับชิ้นที่ถืออยู่ (และตอนลากหมุนกล้อง)
+func _update_motor(holding: bool, delta: float) -> void:
+	var speed := 0.0
+	if holding and current != null:
+		speed = current.global_position.distance_to(_last_hold_pos) / maxf(delta, 0.0001)
+		_last_hold_pos = current.global_position
+	if camera.dragging:
+		speed = maxf(speed, 4.0)
+	_motor = lerpf(_motor, clampf(speed / 8.0, 0.0, 1.0), 1.0 - exp(-8.0 * delta))
+	sfx.set_loop_level("motor", _motor * 0.6 if _motor > 0.03 else 0.0, 0.5)
 
 
 # คืนเวลาเป็นปกติ + ล้างผลกาแฟ (เรียกเมื่อชิ้นนิ่ง / จบวัน / ชิ้นหลุด)
@@ -469,6 +542,8 @@ func _lines(lines: Array, extra := {}) -> Array:
 # บทพูดต้นวัน: DAY_INTRO + คำอธิบายตัวปรับของวัน + ขยะพิเศษที่เริ่มมีวันนี้
 func _intro_lines() -> Array:
 	var lines: Array = Dialogue.DAY_INTRO[day].duplicate()
+	if day == 1 and Settings.night_shift:
+		lines[0] = Dialogue.NIGHT_FIRST_LINE
 	for m in GameData.DAYS[day - 1].get("modifiers", []):
 		lines.append_array(Dialogue.MODIFIER_INTRO.get(m, []))
 	for kind in GameData.KIND_FIRST_DAY:

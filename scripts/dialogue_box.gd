@@ -13,7 +13,7 @@ const CHARS_PER_SEC := 45.0
 const COMMENT_HOLD := 2.5     # คอมเมนต์ค้างหลังพิมพ์ครบกี่วินาที
 const PANEL_H := 76.0
 const COMMENT_LEFT := 118.0   # โหมดคอมเมนต์เริ่มกล่องหลังพ้น HUD ซ้ายบน (px)
-const FONT_SIZE := 11
+const FONT_SIZE := 8   # ฟอนต์ pixel คมสุดที่พหุคูณของ 8 (ดู GameTheme)
 const EYE_COLOR := Color(1.0, 0.85, 0.2)
 
 var _panel: Control
@@ -21,6 +21,10 @@ var _label: Label
 var _hint: Label
 var _eyes: Array[ColorRect] = []
 var _glows: Array[ColorRect] = []
+var _body_parts: Array[ColorRect] = []   # เงาตัว (ไหล่/คอ/หัว/หมวก) ซ่อนได้ตอนฉากจบ
+var _eye_rest: Array[Vector2] = []        # ตำแหน่งตาปกติ
+var _glow_rest: Array[Vector2] = []
+var _portrait := "normal"
 
 var _lines: Array = []
 var _idx := 0
@@ -86,8 +90,9 @@ func say(lines: Array) -> void:
 	_place(false)
 	_lines = lines
 	_idx = 0
-	_show_text(_lines[0])
+	_show_line()
 	await finished
+	_set_portrait("normal")
 
 
 # โหมดคอมเมนต์: ไม่บล็อก / ถ้ากำลังอยู่ในโหมดบล็อกจะไม่ทำอะไร
@@ -164,7 +169,32 @@ func _advance() -> void:
 		_panel.hide()
 		finished.emit()
 	else:
-		_show_text(_lines[_idx])
+		_show_line()
+
+
+# บรรทัดเป็น String ธรรมดา หรือ {"text", "portrait"} (เปลี่ยนท่าของ boss ในฉากจบ)
+func _show_line() -> void:
+	var entry = _lines[_idx]
+	if entry is Dictionary:
+		_set_portrait(entry.get("portrait", "normal"))
+		_show_text(entry.text)
+	else:
+		_show_text(entry)
+
+
+# normal = ปกติ / empty = เงาตัวหาย เหลือแต่ตาลอย / eyes_turn = ตาเลื่อนลงมาและใหญ่ขึ้น (หันมามองผู้เล่น)
+func _set_portrait(mode: String) -> void:
+	_portrait = mode
+	for part in _body_parts:
+		part.visible = mode == "normal"
+	for i in _eyes.size():
+		var shift := Vector2.ZERO
+		if mode == "eyes_turn":
+			shift = Vector2(-2.0 if i == 0 else 2.0, 8.0)
+		_eyes[i].position = _eye_rest[i] + shift
+		_glows[i].position = _glow_rest[i] + shift
+		_eyes[i].size = Vector2(7, 5) if mode == "eyes_turn" else Vector2(5, 3)
+		_glows[i].size = Vector2(13, 9) if mode == "eyes_turn" else Vector2(9, 7)
 
 
 # ตากะพริบเป็นครั้งคราว และเรืองแรงขึ้นตอนกำลังพูด
@@ -195,14 +225,18 @@ func _build_portrait() -> void:
 
 	_rect(p, Rect2(0, 0, 68, 64), Color(0.11, 0.11, 0.14))        # ฉากหลัง
 	var black := Color(0.0, 0.0, 0.0)
-	_rect(p, Rect2(8, 40, 52, 24), black)                          # ไหล่
-	_rect(p, Rect2(28, 34, 12, 8), black)                          # คอ
-	_rect(p, Rect2(21, 12, 26, 26), black)                         # หัว
-	_rect(p, Rect2(17, 8, 34, 8), black)                           # หมวก/ปีกหมวก
+	_body_parts.append(_rect(p, Rect2(8, 40, 52, 24), black))      # ไหล่
+	_body_parts.append(_rect(p, Rect2(28, 34, 12, 8), black))      # คอ
+	_body_parts.append(_rect(p, Rect2(21, 12, 26, 26), black))     # หัว
+	_body_parts.append(_rect(p, Rect2(17, 8, 34, 8), black))       # หมวก/ปีกหมวก
 
 	for x in [27.0, 37.0]:
-		_glows.append(_rect(p, Rect2(x - 2, 21, 9, 7), Color(EYE_COLOR, 0.25)))
-		_eyes.append(_rect(p, Rect2(x, 23, 5, 3), EYE_COLOR))
+		var glow := _rect(p, Rect2(x - 2, 21, 9, 7), Color(EYE_COLOR, 0.25))
+		var eye := _rect(p, Rect2(x, 23, 5, 3), EYE_COLOR)
+		_glows.append(glow)
+		_eyes.append(eye)
+		_glow_rest.append(glow.position)
+		_eye_rest.append(eye.position)
 
 
 func _rect(parent: Control, r: Rect2, color: Color) -> ColorRect:

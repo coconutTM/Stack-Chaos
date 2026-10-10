@@ -14,6 +14,8 @@ var target_y := 0.0:        # ความสูงกองที่ไฟค�
 
 var _lighting: Lighting
 
+signal flickered
+
 
 func _ready() -> void:
 	if ground:
@@ -21,4 +23,5 @@ func _ready() -> void:
 	add_child(Junkyard.new())
 	_lighting = Lighting.new()
 	add_child(_lighting)
+	_lighting.flickered.connect(flickered.emit)
 	add_child(PostFx.new())

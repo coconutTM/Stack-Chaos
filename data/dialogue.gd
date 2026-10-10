@@ -91,13 +91,20 @@ const FIRED_PIECES := [
 	"You're fired.",
 ]
 
-# ฉากจบหลังผ่านวันสุดท้าย
+# ฉากจบหลังผ่านวันสุดท้าย (เฉลย: boss ไม่มีตัวตน เป็นแค่ "งาน" ที่ส่งต่อให้คนถัดไป)
+# บรรทัดเป็น String หรือ {"text": ..., "portrait": ...} / portrait: "normal" | "empty" (เงาตัวหายเหลือแต่ตา) | "eyes_turn" (ตาหันมามอง)
 const ENDING := [
 	"Five days. Not one pile of trash fell on my watch.",
-	"You see, the pile was never meant to be finished.",
-	"Go home. Rest.",
-	"Tomorrow, we begin again.",
+	"You have a talent. I had it once.",
+	"I'm retiring. Tonight.",
+	{"text": "Look at me. Go on.", "portrait": "empty"},
+	"There is no one here. There never was. Only the job.",
+	{"text": "Your shadow suits you.", "portrait": "eyes_turn"},
 ]
+
+# ผ่านเกมแล้วเริ่มรอบใหม่ (Settings.night_shift): แทนบรรทัดแรกของวันที่ 1
+const NIGHT_FIRST_LINE := "You're back. Good. Sit. The night shift is yours."
+
 
 # คอมเมนต์ระหว่างวัน (สุ่มหนึ่งบรรทัดจากแต่ละหมวด)
 const COMMENTS := {
@@ -117,5 +124,10 @@ const COMMENTS := {
 static func fmt(lines: Array, vars: Dictionary) -> Array:
 	var out: Array = []
 	for line in lines:
-		out.append(String(line).format(vars))
+		if line is Dictionary:
+			var copy: Dictionary = line.duplicate()
+			copy.text = String(line.text).format(vars)
+			out.append(copy)
+		else:
+			out.append(String(line).format(vars))
 	return out

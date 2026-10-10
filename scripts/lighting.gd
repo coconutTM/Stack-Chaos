@@ -9,6 +9,8 @@ const HEIGHT_ABOVE := 11.0     # ไฟอยู่เหนือยอดก�
 const FOLLOW := 3.0
 const LIGHT_COLOR := Color(1.0, 0.88, 0.66)
 
+signal flickered   # ไฟวูบรอบใหม่เริ่ม (ไว้เล่นเสียงฮัม)
+
 var target_y := 0.0            # main.gd ตั้งเป็น tower_top
 
 var _spot: SpotLight3D
@@ -40,6 +42,7 @@ func _process(delta: float) -> void:
 	_next_burst -= delta
 	if _next_burst <= 0.0:
 		_burst_left = randf_range(0.15, 0.45)
+		flickered.emit()
 		_next_burst = randf_range(4.0, 10.0)
 	if _burst_left > 0.0:
 		_burst_left -= delta

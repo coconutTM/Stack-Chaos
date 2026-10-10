@@ -46,7 +46,7 @@ func _ready() -> void:
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(SLOT_W, SLOT_H)
 		b.focus_mode = Control.FOCUS_NONE
-		b.add_theme_font_size_override("font_size", 9)
+		b.add_theme_font_size_override("font_size", 8)
 		b.pressed.connect(slot_pressed.emit.bind(i))
 		b.mouse_entered.connect(_on_hover.bind(i))
 		b.mouse_exited.connect(_on_hover.bind(-1))
@@ -62,7 +62,7 @@ func _ready() -> void:
 	_info.anchor_bottom = 1.0
 	_info.offset_top = -(SLOT_H + 20.0)
 	_info.offset_bottom = -(SLOT_H + 6.0)
-	_info.add_theme_font_size_override("font_size", 9)
+	_info.add_theme_font_size_override("font_size", 8)
 	_info.add_theme_color_override("font_outline_color", Color.BLACK)
 	_info.add_theme_constant_override("outline_size", 4)
 	_root.add_child(_info)
@@ -74,8 +74,8 @@ func _ready() -> void:
 	_next.anchor_right = 1.0
 	_next.offset_left = -120.0
 	_next.offset_right = -4.0
-	_next.offset_top = 2.0
-	_next.add_theme_font_size_override("font_size", 10)
+	_next.offset_top = 22.0
+	_next.add_theme_font_size_override("font_size", 8)
 	_next.add_theme_color_override("font_outline_color", Color.BLACK)
 	_next.add_theme_constant_override("outline_size", 4)
 	_root.add_child(_next)

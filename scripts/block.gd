@@ -27,10 +27,10 @@ const SCENES := {
 	Kind.STEEL_CRATE: preload("res://scenes/blocks/block_steel_crate.tscn"),
 }
 
-signal hit_hard(impact: float)   # ชนแรง (impact = ความเร็ว x รากของมวล) ไว้สั่นจอ/ฝุ่น
+signal hit(impact: float)   # กระแทก (impact = ความเร็วก่อนชน x รากของมวล) main.gd เอาไปเล่นเสียง/สั่นจอ/ฝุ่น
 
-const HIT_IMPACT := 10.0   # impact เกินนี้ถึงส่งสัญญาณ (ลังไม้ตกปกติ ≈ 7, ตู้เย็น ≈ 13, ลังเหล็ก ≈ 17)
-const HIT_COOLDOWN := 0.3
+const HIT_MIN := 2.5       # impact ต่ำกว่านี้ไม่ส่งสัญญาณ (ชิ้นที่วางนิ่งๆ แตะกัน) / ลังไม้ตกปกติ ≈ 7, ตู้เย็น ≈ 13, ลังเหล็ก ≈ 17
+const HIT_COOLDOWN := 0.12
 
 @export var fragile := false    # เปราะ: เสียชิ้นนี้ (หลุดขอบ/ตกพื้น/กองล้ม) = โดนไล่ออกทันที (ตั้งใน .tscn)
 @export var slippery := false   # ลื่น (ใช้แสดงคำเตือน ค่าความลื่นจริงอยู่ที่ physics material ใน .tscn)
@@ -198,9 +198,9 @@ func _on_body_entered(_body: Node) -> void:
 	if not released or _hit_cd > 0.0:
 		return
 	var impact := _prev_speed * sqrt(mass)
-	if impact >= HIT_IMPACT:
+	if impact >= HIT_MIN:
 		_hit_cd = HIT_COOLDOWN
-		hit_hard.emit(impact)
+		hit.emit(impact)
 
 
 func _physics_process(delta: float) -> void:

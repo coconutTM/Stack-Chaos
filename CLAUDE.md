@@ -26,7 +26,7 @@
 - เกมอ้างอิง: Super Stacker 2, Tower Bloxx, Stack
 
 > **สถานะ (หลัง Phase 2):** มีเครน + กล้อง 360°, ระบบ 5 วัน/โควต้า, boss พูดแบบพิมพ์ทีละตัว (เงาร่าง + ตาเรืองแสง),
-> หน้า title / โดนไล่ออก / จบเกม / tutorial วันที่ 1 / สุ่มขยะแบบ bag / item 6 ชนิดแบบ Buckshot Roulette / ลุค PS1 / ตัวปรับของวัน (ลม ฝน แผ่นดินไหว) / ขยะพิเศษ / สั่นจอ — **ยังไม่มี** เสียง / ดู [Roadmap](#8-roadmap)
+> หน้า title / โดนไล่ออก / จบเกม / tutorial วันที่ 1 / สุ่มขยะแบบ bag / item 6 ชนิดแบบ Buckshot Roulette / ลุค PS1 / ตัวปรับของวัน (ลม ฝน แผ่นดินไหว) / ขยะพิเศษ / สั่นจอ / เสียง / ฟอนต์ pixel / ฉากจบ / ดู [Roadmap](#8-roadmap)
 
 ---
 
@@ -144,8 +144,25 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 - **ทีวีเปราะ (`Block.fragile`)**: เสียชิ้นนี้แบบไหนก็ได้ (หลุดขอบ / ตกพื้น / กองล้ม) → `_register_fail(key, true)` →
   `_end_day(false, "fragile")` โดนไล่ออกทันที (Insurance ช่วยได้) / ขึ้น `FRAGILE!` ในแถบสถานะตอนถืออยู่
 - **สั่นจอ/เอฟเฟกต์**: `OrbitCamera.shake()/rumble()` (trauma → `h_offset`/`v_offset`), `ScreenFx.flash()` (แฟลชแดงตอนเสียชิ้น),
-  `Effects.puff()` (ฝุ่น) / ชิ้นชนแรง = สัญญาณ `Block.hit_hard(impact)` เมื่อ `ความเร็วก่อนชน x √มวล ≥ HIT_IMPACT (10)`
+  `Effects.puff()` (ฝุ่น) / ชิ้นชนแรง = สัญญาณ `Block.hit(impact)` เมื่อ `ความเร็วก่อนชน x √มวล ≥ HIT_MIN` (หนักพอ ≥ `HARD_IMPACT` ถึงสั่นจอ/ฝุ่น)
   (ลังไม้ ≈ 7 ไม่สั่น, ตู้เย็น ≈ 13, ลังเหล็ก ≈ 17)
+
+**เสียง / ฟอนต์ / ฉากจบ (Phase 6):**
+- `scripts/sfx.gd` (`Sfx`, สร้างโดย main) — `play(id, volume_db, pitch)` เสียงสั้น (pool 12 ตัว), `set_loop(id, on, db)` เสียงวน
+  (`ambient`, `motor`, `rain`), `set_loop_level()` ปรับมอเตอร์ตามความเร็วที่ขยับชิ้น / รายการ id ทั้งหมดอยู่ใน `Sfx.IDS`
+  **ถ้ามี `res://audio/<id>.ogg|.wav|.mp3` จะใช้ไฟล์จริง ไม่มีก็ใช้เสียงสังเคราะห์ชั่วคราวจาก `scripts/sfx_synth.gd`**
+  (สร้างทีละตัวทีละเฟรมตอนเปิดเกม) → วางไฟล์ทับได้เลยไม่ต้องแก้โค้ด / รายการไฟล์ที่ต้องหา: `audio/README.md`
+- ที่ไหนเล่นเสียงอะไร: `main.gd` (ปล่อย/เสีย/ผ่านวัน/ไล่ออก/กระแทก/item/คลิก), `DialogueBox.blip` → `Sfx.blip()`,
+  `DayModifiers.phase_changed` → เตือน/ลม/ครืน, `Ps1Look.flickered` → ไฟกะพริบ, `ItemSystem.used`
+- **กระแทก:** `Block.hit(impact)` (impact ≥ `HIT_MIN` 2.5) → main เล่นเสียงตามแรง / ถ้า ≥ `HARD_IMPACT` (10) สั่นจอ + ฝุ่นด้วย
+- `scripts/sound_toggle.gd` — ปุ่ม SND ON/OFF มุมขวาบน / `scripts/settings.gd` (`Settings`) เก็บ `muted` และ `night_shift`
+  ใน `user://settings.cfg`
+- **ฟอนต์:** `scripts/game_theme.gd` ตั้ง `fonts/pixel.ttf` (Press Start 2P, OFL) เป็นฟอนต์ default ผ่าน `ThemeDB.get_default_theme()`
+  (ตั้ง `Window.theme` ไม่ได้ผล เพราะ CanvasLayer ขวาง) / **ขนาดตัวอักษรต้องเป็นพหุคูณของ 8 (8 / 16)** ไม่งั้นตัวอักษรเพี้ยน
+  / ทับไฟล์ `pixel.ttf` เพื่อเปลี่ยนฟอนต์
+- **ฉากจบวันที่ 5 "You Are the Boss Now":** `Dialogue.ENDING` (บรรทัดเป็น String หรือ `{"text", "portrait"}` โดย portrait =
+  `normal` / `empty` เงาตัวหายเหลือแต่ตา / `eyes_turn` ตาเลื่อนลงมามอง) → `main._ending_cinematic()` (`ScreenFx.fade_to_black`
+  + `show_eyes`) → `Settings.night_shift = true` → title ขึ้น `(night shift)` และบทวันแรกเปลี่ยนเป็น `Dialogue.NIGHT_FIRST_LINE`
 
 **Item (Phase 3):** boss แจก `ItemData.GIVE_PER_DAY` (2) ชิ้นหลังบทต้นวัน เก็บได้ `MAX_SLOTS` (6) ช่อง ล้นถูกทิ้ง
 (คลังค้างข้ามวัน รีเซ็ตเมื่อเริ่มรอบใหม่) / ใช้ได้เฉพาะตอน `HOLDING`
@@ -354,5 +371,5 @@ Main (Node3D)                ← scripts/main.gd
 5. [x] Phase 3: item 6 ชนิดแบบ Buckshot Roulette (รอทดสอบ)
 6. [x] Phase 4: PS1 look (ฉากมืด, SpotLight กะพริบ, fog, PSX shader, โรงขยะ) — รอเช็ค FPS บนเว็บจริง (กด F3)
 7. [x] Phase 5: ตัวปรับของวัน (ลม/ฝน/แผ่นดินไหว) + ขยะพิเศษ (น้ำมัน/ทีวีเปราะ/ลังเหล็ก) + สั่นจอ (รอทดสอบ)
-8. [ ] Phase 6: เสียง, polish UI, ฟอนต์
+8. [x] Phase 6: เสียง (สังเคราะห์ชั่วคราว + รองรับไฟล์จริง), ฟอนต์ pixel, ปุ่มปิดเสียง, ฉากจบ (รอคุณหาไฟล์เสียงจริงมาใส่ `audio/`)
 9. [ ] Phase 7: อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ + README บน GitHub

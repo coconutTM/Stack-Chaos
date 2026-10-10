@@ -5,6 +5,7 @@ extends RefCounted
 # game = main.gd (ใช้ duck typing: current, last_settled, bag, state, dialogue ฯลฯ)
 
 signal changed
+signal used(ok: bool)   # ใช้ item เสร็จ (ok = ใช้สำเร็จ) ไว้เล่นเสียง
 
 var inventory: Array[String] = []
 var clipboard := false        # เห็น 3 ชิ้นถัดไป (รีเซ็ตทุกวัน)
@@ -57,8 +58,10 @@ func use_slot(index: int) -> void:
 	if call(method):
 		inventory.remove_at(index)
 		changed.emit()
+		used.emit(true)
 	else:
 		game.dialogue.comment(ItemData.ITEMS[id].fail)
+		used.emit(false)
 
 
 # ถูกเรียกตอนมีชิ้นหลุดขอบ: ถ้ามีประกันก็ใช้ 1 ครั้งแล้วคืน true (ไม่นับว่าหลุด)

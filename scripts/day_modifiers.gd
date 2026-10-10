@@ -5,6 +5,8 @@ extends Node
 # ค่าจูนอยู่ใน GameData.MODIFIERS / วันไหนใช้ตัวไหนอยู่ใน GameData.DAYS[i].modifiers
 # main.gd เรียก start()/stop() ตอนต้น/จบวัน และตั้ง running / follow_y ทุกเฟรม
 
+signal phase_changed(kind: String, phase: int)   # ลม/แผ่นดินไหวเปลี่ยนเฟส (ไว้เล่นเสียง)
+
 enum Phase { IDLE, WARN, ACTIVE }
 
 var _physics: PhysicsMaterial = load("res://resources/block_physics.tres")   # แชร์กับทุกบล็อก (ResourceLoader cache)
@@ -117,11 +119,13 @@ func _step(s: Dictionary, key: String, delta: float) -> void:
 		return
 	match s.phase:
 		Phase.IDLE:
+			phase_changed.emit(key, Phase.WARN)
 			s.phase = Phase.WARN
 			s.left = float(cfg.warn)
 			if key == "wind":
 				s.dir = _random_direction()
 		Phase.WARN:
+			phase_changed.emit(key, Phase.ACTIVE)
 			s.phase = Phase.ACTIVE
 			s.left = float(cfg.duration)
 		Phase.ACTIVE:
