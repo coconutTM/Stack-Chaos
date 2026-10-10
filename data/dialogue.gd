@@ -49,6 +49,7 @@ const MODIFIER_INTRO := {
 const KIND_INTRO := {
 	Block.Kind.OIL_BARREL: ["New arrivals: oil barrels. They're slick. They slide."],
 	Block.Kind.STEEL_CRATE: ["Steel crates too. Heavy. Great at the bottom. Terrible if you drop one."],
+	Block.Kind.CAR: ["Scrap cars now. Low, wide, heavy. Flat roofs make decent shelves."],
 	Block.Kind.TV: ["Some TVs in the mix. Fragile. Lose one and you're fired. No exceptions."],
 }
 

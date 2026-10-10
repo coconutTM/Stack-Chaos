@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://b6ii1x0rv0eof" path="res://scripts/block.gd" id="1_script"]
+[ext_resource type="PhysicsMaterial" path="res://resources/block_physics.tres" id="2_phys"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_car"]
+size = Vector3(0.7, 0.45, 1.6)
+
+[node name="BlockCar" type="RigidBody3D"]
+mass = 3.5
+linear_damp = 0.3
+angular_damp = 0.8
+physics_material_override = ExtResource("2_phys")
+script = ExtResource("1_script")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_car")

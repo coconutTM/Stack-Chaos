@@ -47,8 +47,10 @@
 - **ข้อความ UI ทั้งหมดใช้ภาษาอังกฤษ** เพราะ default font ไม่มีอักษรไทย (โดยเฉพาะบนเว็บ)
   → คอมเมนต์ในโค้ดเป็นไทยได้ แต่ string ที่โชว์ผู้เล่นต้องเป็นอังกฤษ
 
-**โมเดลทั้งหมดเป็น primitive mesh ของ Godot** (`BoxMesh`, `CylinderMesh` ที่ `radial_segments = 8`)
-สร้างด้วยโค้ด ไม่ import asset ภายนอก
+**โมเดลเกือบทั้งหมดเป็น primitive mesh ของ Godot** (`BoxMesh`, `CylinderMesh` ที่ `radial_segments = 8`) สร้างด้วยโค้ด
+**ข้อยกเว้นเดียวคือรถ** — `assets/cars/*.glb` (ชุด Cars Bundle ที่ผู้พัฒนานำเข้ามา: `car_a`, `car_b`, `police`, `sports_a`,
+`sports_b`, `suv`, `taxi` / ไฟล์ต้นฉบับ `assets/Cars Bundle-glb.zip` เก็บไว้ ห้ามลบ) ดู `scripts/car_models.gd`
+> **เครดิต:** ในไฟล์ .glb ไม่ระบุผู้สร้าง/ไลเซนส์ (generator = obj2gltf) ให้ผู้พัฒนาตรวจที่มาของ bundle แล้วใส่เครดิตใน README (Phase 7)
 
 ---
 
@@ -132,6 +134,12 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 **สุ่มขยะ:** `scripts/piece_bag.gd` (`PieceBag`) — ถุงที่ใส่ทุก `Block.Kind` อย่างละชิ้น สลับแล้วหยิบ หมดค่อยเติม
 (ชิ้นแรกของถุงใหม่ไม่ซ้ำชิ้นสุดท้ายของถุงเก่า)
 
+**รถ (`Block.Kind.CAR`):** `scripts/car_models.gd` (`CarModels`) โหลด GLB ทั้ง 7 → รวมชิ้นส่วนเป็น `ArrayMesh` เดียวต่อโมเดล
+**รวม surface ที่ material เดียวกัน** (ลด draw call: ~12 → ~7 ต่อคัน) + แปลงสีเป็น `Psx.material` (material ที่ชื่อมี "light" =
+ไฟหน้า/ไฟท้าย/ไซเรน เรืองแสง) + cache / `Block._setup_car()` สุ่มโมเดล ย่อ `CAR_SCALE` ตั้งกล่องชนตาม AABB และย้ายโมเดลให้ศูนย์กลาง
+อยู่ที่ origin / เริ่มในถุงวันที่ 2 (`GameData.KIND_FIRST_DAY`) / `Junkyard._build_cars()` วางซากรถประดับในหลุม (16 คัน บางคันคว่ำ/ซ้อน
+ใช้ 3 โมเดล `YARD_CARS` เป็น `MultiMesh`) / Counterweight บนรถใช้ `material_overlay` แทน emission (โมเดลหลาย material)
+
 **ตัวปรับของวัน + ขยะพิเศษ (Phase 5):**
 - `GameData.DAYS[i].modifiers` (วัน 3 = `wind`, 4 = `rain`, 5 = `wind`+`shake`) / ค่าจูนอยู่ใน `GameData.MODIFIERS`
   `scripts/day_modifiers.gd` (`DayModifiers`) — `start(mods)`/`stop()` ตอนต้น/จบวัน, `running` (เปิดเฉพาะ HOLDING/WAITING),
@@ -201,6 +209,7 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 | `OIL_BARREL` | `block_oil_barrel.tscn` | Cylinder r `0.5` h `1.1` (ลื่น: friction `0.1` จาก `block_physics_slippery.tres`, `slippery = true`) | `2.5` | `0.4` / `1.8` |
 | `TV` | `block_tv.tscn` | Box `1.1×0.85×0.9` + จอเรืองแสง (**เปราะ** `fragile = true`) | `2.0` | `0.3` / `0.6` |
 | `STEEL_CRATE` | `block_steel_crate.tscn` | Box `1.3×1.1×1.3` (หนัก) | `9.0` | `0.3` / `0.6` |
+| `CAR` | `block_car.tscn` | โมเดลรถ (สุ่ม 1 ใน 7) ย่อ x`0.4` ≈ `0.7×0.5×1.5` + กล่องชนพอดีโมเดล | `3.5` | `0.3` / `0.8` |
 
 Cylinder blocks (`BARREL`, `TIRE`) carry a much higher `angular_damp` (`1.8` vs `0.6`) because
 they **roll** — without strong damping a tipped barrel/tire keeps rolling almost indefinitely

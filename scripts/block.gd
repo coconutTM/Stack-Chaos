@@ -2,9 +2,10 @@ class_name Block
 extends RigidBody3D
 
 # ชนิดของบล็อก ⇄ ชื่อ scene ใน scenes/blocks/ (ดู Kind.SCENES)
-enum Kind { CRATE, PLANK, FRIDGE, BARREL, TIRE, SQUARE, CYLINDER, OIL_BARREL, TV, STEEL_CRATE }
-const KIND_COUNT := 10
-const KIND_NAMES := ["CRATE", "PLANK", "FRIDGE", "BARREL", "TIRE", "SQUARE", "PIPE", "OIL", "TV", "STEEL"]   # เรียงตาม Kind (ใช้โชว์ใน UI)
+enum Kind { CRATE, PLANK, FRIDGE, BARREL, TIRE, SQUARE, CYLINDER, OIL_BARREL, TV, STEEL_CRATE, CAR }
+const KIND_COUNT := 11
+const KIND_NAMES := ["CRATE", "PLANK", "FRIDGE", "BARREL", "TIRE", "SQUARE", "PIPE", "OIL", "TV", "STEEL", "CAR"]
+const CAR_SCALE := 0.4   # รถจริงยาว ~4 ม. ย่อให้เหลือ ~1.6 ม. ให้ขนาดพอดีกับขยะชิ้นอื่น   # เรียงตาม Kind (ใช้โชว์ใน UI)
 
 # ความหนืดที่ทำให้บล็อกที่ชิดกัน "ติด" กันเล็กน้อยคล้ายสไลม์ (หน่วง relative velocity
 # ของคู่ที่สัมผัสกันอยู่ ไม่ใช่แรงดึงดูดข้ามที่ว่าง) ยิ่งค่าสูง ยิ่งหนืด/กองง่ายขึ้น
@@ -25,6 +26,7 @@ const SCENES := {
 	Kind.OIL_BARREL: preload("res://scenes/blocks/block_oil_barrel.tscn"),
 	Kind.TV: preload("res://scenes/blocks/block_tv.tscn"),
 	Kind.STEEL_CRATE: preload("res://scenes/blocks/block_steel_crate.tscn"),
+	Kind.CAR: preload("res://scenes/blocks/block_car.tscn"),
 }
 
 signal hit(impact: float)   # กระแทก (impact = ความเร็วก่อนชน x รากของมวล) main.gd เอาไปเล่นเสียง/สั่นจอ/ฝุ่น
@@ -54,6 +56,8 @@ static func spawn(which: int) -> Block:
 
 func _ready() -> void:
 	_mesh = get_node("MeshInstance3D")
+	if kind == Kind.CAR:
+		_setup_car()
 	# สีเดิมจาก scene แต่ใช้ shader PS1 (รวมชิ้นส่วนเสริม เช่น จอทีวี)
 	for child in get_children():
 		var mi := child as MeshInstance3D
@@ -169,10 +173,10 @@ func _add_tape_band() -> void:
 	var bb := _mesh.get_aabb()
 	var band := MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(bb.size.x + 0.06, maxf(0.1, bb.size.y * 0.14), bb.size.z + 0.06)
+	box.size = Vector3(bb.size.x * _mesh.scale.x + 0.06, maxf(0.1, bb.size.y * _mesh.scale.y * 0.14), bb.size.z * _mesh.scale.z + 0.06)
 	band.mesh = box
 	band.material_override = Psx.material(Color(0.78, 0.78, 0.8))
-	band.position = _mesh.position + bb.get_center()
+	band.position = _mesh.position + bb.get_center() * _mesh.scale
 	add_child(band)
 
 
@@ -180,6 +184,12 @@ func _add_tape_band() -> void:
 func _glow(color: Color) -> void:
 	var m := _mesh.material_override as ShaderMaterial
 	if m == null:
+		# โมเดลหลาย material (รถ): ใช้ชั้นโปร่งแสงสีนั้นทับแทน
+		var overlay := StandardMaterial3D.new()
+		overlay.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		overlay.albedo_color = Color(color, 0.28)
+		_mesh.material_overlay = overlay
 		return
 	m = m.duplicate()
 	m.set_shader_parameter("emission_color", color)
@@ -191,6 +201,17 @@ func _glow(color: Color) -> void:
 func footprint_radius() -> float:
 	var bb := _mesh.global_transform * _mesh.get_aabb()
 	return maxf(bb.size.x, bb.size.z) * 0.5
+
+
+# รถ: สุ่มโมเดลจาก CarModels แล้วย่อขนาด / ตั้งกล่องชนให้พอดีโมเดล และย้ายโมเดลให้ศูนย์กลางอยู่ที่ origin ของบล็อก
+func _setup_car() -> void:
+	_mesh.mesh = CarModels.mesh(randi() % CarModels.count())
+	_mesh.scale = Vector3.ONE * CAR_SCALE
+	var bb := _mesh.mesh.get_aabb()
+	_mesh.position = -bb.get_center() * CAR_SCALE
+	var box := BoxShape3D.new()
+	box.size = bb.size * CAR_SCALE
+	(get_node("CollisionShape3D") as CollisionShape3D).shape = box
 
 
 # ชนแรงไหม: ใช้ความเร็ว "ก่อนชน" (เฟรมก่อนหน้า) เพราะตอนสัญญาณมาความเร็วถูกฟิสิกส์ลดไปแล้ว

@@ -33,6 +33,7 @@ const MODIFIERS := {
 const KIND_FIRST_DAY := {
 	Block.Kind.OIL_BARREL: 2,
 	Block.Kind.STEEL_CRATE: 2,
+	Block.Kind.CAR: 2,
 	Block.Kind.TV: 3,
 }
 

@@ -13,11 +13,13 @@ const PALETTE: Array[Color] = [
 ]
 const LAMP_COLOR := Color(1.0, 0.8, 0.5)
 const FENCE_RADIUS := 21.0
+const YARD_CARS := [0, 2, 6]   # โมเดลรถที่ใช้ประดับฉาก (car_a, police, taxi) — จำกัดไว้ลด draw call (แต่ละโมเดล ≈ 7 draw)
 
 enum Shape { BOX, CYLINDER }
 
 var _rng := RandomNumberGenerator.new()
 var _groups := {}   # key → {shape, material, xforms}
+var _car_groups := {}   # โมเดลรถ (variant) → รายการ transform (รวมเป็น MultiMesh ต่อโมเดล)
 var _meshes := {}
 
 
@@ -28,6 +30,7 @@ func _ready() -> void:
 	_build_fence()
 	_build_mounds()
 	_build_lamps()
+	_build_cars()
 	_flush()
 
 
@@ -108,6 +111,33 @@ func _build_lamps() -> void:
 		_add(Shape.BOX, lamp_mat, Transform3D(Basis.from_scale(Vector3(0.8, 0.25, 0.8)), base + inward * 2.2 + Vector3(0, top_y - 0.2, 0)))
 
 
+# ซากรถในหลุม: บางคันพลิกคว่ำ/เอียง บางคันซ้อนทับกัน (ไฟหน้า-ไฟท้ายเรืองแสงในความมืด)
+func _build_cars() -> void:
+	for i in 16:
+		var a := _rng.randf() * TAU
+		var r := _rng.randf_range(8.0, FENCE_RADIUS - 2.5)
+		var pos := Vector3(cos(a) * r, FLOOR_Y, sin(a) * r)
+		if absf(pos.x) < 6.5 and absf(pos.z) < 6.5:
+			continue   # ใต้แท่นวาง
+		var tilt := Vector3(_rng.randf_range(-0.12, 0.12), 0.0, _rng.randf_range(-0.12, 0.12))
+		if _rng.randf() < 0.25:
+			tilt.z = PI   # คว่ำหลังคา
+			pos.y += 1.2
+		var s := _rng.randf_range(0.9, 1.2)
+		var basis := Basis.from_euler(Vector3(tilt.x, _rng.randf() * TAU, tilt.z)) * Basis.from_scale(Vector3(s, s, s))
+		_add_car(YARD_CARS[_rng.randi() % YARD_CARS.size()], Transform3D(basis, pos))
+		if _rng.randf() < 0.3:
+			# ซ้อนอีกคันทับ
+			var top := Basis.from_euler(Vector3(0.0, _rng.randf() * TAU, _rng.randf_range(-0.15, 0.15))) * Basis.from_scale(Vector3(s, s, s))
+			_add_car(YARD_CARS[_rng.randi() % YARD_CARS.size()], Transform3D(top, pos + Vector3(_rng.randf_range(-0.5, 0.5), 1.15 * s, _rng.randf_range(-0.5, 0.5))))
+
+
+func _add_car(variant: int, xform: Transform3D) -> void:
+	if not _car_groups.has(variant):
+		_car_groups[variant] = []
+	_car_groups[variant].append(xform)
+
+
 func _add(shape: int, material: Material, xform: Transform3D) -> void:
 	var key := "%d:%d" % [shape, material.get_instance_id()]
 	if not _groups.has(key):
@@ -130,6 +160,20 @@ func _flush() -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
 	_groups.clear()
+
+	for variant in _car_groups:
+		var xforms: Array = _car_groups[variant]
+		var cars := MultiMesh.new()
+		cars.transform_format = MultiMesh.TRANSFORM_3D
+		cars.mesh = CarModels.mesh(variant)   # material PS1 ฝังอยู่ในแต่ละ surface แล้ว
+		cars.instance_count = xforms.size()
+		for i in xforms.size():
+			cars.set_instance_transform(i, xforms[i])
+		var cars_mi := MultiMeshInstance3D.new()
+		cars_mi.multimesh = cars
+		cars_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(cars_mi)
+	_car_groups.clear()
 
 
 func _mesh_for(shape: int) -> Mesh:
