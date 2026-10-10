@@ -6,8 +6,8 @@ extends Camera3D
 
 signal tapped   # คลิกขวาแบบไม่ลาก
 
-const RADIUS := 8.0           # ระยะราบจากแกนกลางกอง
-const HEIGHT := 9.0           # สูงเหนือยอดกอง
+const RADIUS := 9.5           # ระยะราบจากแกนกลางกอง
+const HEIGHT := 5.5           # สูงเหนือยอดกอง
 const DRAG_THRESHOLD := 4.0   # ขยับเมาส์เกินกี่พิกเซลถึงนับว่าเป็นการลาก (ไม่ใช่คลิก)
 const DRAG_SENS := 0.012      # เรเดียนต่อพิกเซล
 const FOLLOW := 3.0           # ความเร็วตามความสูงกอง (สูตร exp ไม่ขึ้นกับ framerate)

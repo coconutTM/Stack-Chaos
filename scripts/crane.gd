@@ -7,7 +7,7 @@ extends Node3D
 
 const MAST_DIST := 5.4        # เสาห่างศูนย์กลางกองเท่านี้ (ฝั่งตรงข้ามกล้อง)
 const MAST_BOTTOM := -12.0    # เสาลงไปถึงเหวข้างล่าง (ยืนอยู่นอกพื้น)
-const JIB_ABOVE_HOLD := 3.5   # แขนเครนอยู่เหนือชิ้นที่ถือเท่านี้
+const JIB_ABOVE_HOLD := 3.0   # แขนเครนอยู่เหนือชิ้นที่ถือเท่านี้
 const JIB_BACK := 2.5         # แขนยื่นไปด้านหลังเสา (ฝั่ง counterweight)
 const JIB_FRONT := 11.5       # แขนยื่นไปด้านหน้า
 const IDLE_HOOK_LEN := 1.0    # ความยาวสายตอนไม่ได้ถืออะไร

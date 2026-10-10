@@ -7,8 +7,9 @@ const KIND_COUNT := 7
 
 # ความหนืดที่ทำให้บล็อกที่ชิดกัน "ติด" กันเล็กน้อยคล้ายสไลม์ (หน่วง relative velocity
 # ของคู่ที่สัมผัสกันอยู่ ไม่ใช่แรงดึงดูดข้ามที่ว่าง) ยิ่งค่าสูง ยิ่งหนืด/กองง่ายขึ้น
-const STICK_LINEAR := 3.0   # หน่วงการไถลระหว่างสองชิ้นที่แตะกัน
-const STICK_ANGULAR := 0.5  # หน่วงการโยก/หมุนสัมพัทธ์ระหว่างสองชิ้นที่แตะกัน
+const STICK_LINEAR := 12.0  # หน่วงการไถลระหว่างสองชิ้นที่แตะกัน
+const STICK_ANGULAR := 3.0  # หน่วงการโยก/หมุนสัมพัทธ์ระหว่างสองชิ้นที่แตะกัน
+const STICK_PULL := 6.0     # แรงดูดเข้าหากันเฉพาะตอนแตะกันอยู่ (แบบการ์ตูน ๆ ช่วยดึงชิ้นที่ไถลกลับ)
 
 const SCENES := {
 	Kind.CRATE: preload("res://scenes/blocks/block_crate.tscn"),
@@ -93,3 +94,7 @@ func _apply_stickiness() -> void:
 			continue
 		apply_central_force((other.linear_velocity - linear_velocity) * STICK_LINEAR)
 		apply_torque((other.angular_velocity - angular_velocity) * STICK_ANGULAR)
+		# ดูดเข้าหาจุดกึ่งกลางของอีกชิ้น (สองฝั่งรันแยกกัน แรงจึงเท่ากันและตรงข้าม ไม่ดันกองลอย)
+		var to_other := other.global_position - global_position
+		if to_other.length_squared() > 0.0001:
+			apply_central_force(to_other.normalized() * STICK_PULL)
