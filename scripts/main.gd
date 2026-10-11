@@ -83,6 +83,7 @@ func _ready() -> void:
 	modifiers = DayModifiers.new()
 	modifiers.blocks_root = blocks_root
 	modifiers.camera = camera
+	modifiers.environment = $WorldEnvironment.environment
 	add_child(modifiers)
 	screen_fx = ScreenFx.new()
 	add_child(screen_fx)
@@ -144,6 +145,7 @@ func _process(delta: float) -> void:
 	look.target_y = tower_top
 	modifiers.running = state == State.HOLDING or state == State.WAITING
 	modifiers.follow_y = tower_top
+	look.power = modifiers.power   # ตัวปรับ BLACKOUT: ไฟดับ/กะพริบ
 
 	var holding := state == State.HOLDING
 	# ระหว่างลากหมุนกล้องไม่ต้องให้ชิ้นที่ถือวิ่งตามเมาส์
@@ -665,7 +667,7 @@ func _on_modifier_phase(kind: String, phase: int) -> void:
 	if phase == DayModifiers.Phase.WARN:
 		sfx.play("warn")
 	elif phase == DayModifiers.Phase.ACTIVE:
-		sfx.play("wind" if kind == "wind" else "rumble")
+		sfx.play("buzz" if kind == "blackout" else ("wind" if kind == "wind" else "rumble"))
 
 
 # มอเตอร์เครนดังตามความเร็วที่ขยับชิ้นที่ถืออยู่ (และตอนลากหมุนกล้อง)

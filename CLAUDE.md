@@ -179,6 +179,9 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
   - **wind**: IDLE → WARN (เตือนพร้อมนับถอยหลังและลูกศรทิศตามมุมกล้อง) → ACTIVE (ชิ้นที่ยังไม่นิ่งโดน `min(force, มวล x max_accel)` N เต็มๆ / ชิ้นที่นิ่งแล้วโดน `settled_mult` เท่า → กองที่วางแล้วไม่ล้มเพราะลม ลมเป็นเรื่องจังหวะปล่อย)
   - **rain**: ลด `friction` ของ `resources/block_physics.tres` (ใช้ร่วมกันทั้งเกม **ต้องคืนค่าเสมอ** → `stop()` ทำให้) + ฝนเป็น `CPUParticles3D`
   - **shake**: ออกแรงแนวราบแกว่งเร็ว x มวล ทุกชิ้นได้ความเร่งเท่ากัน + จอสั่น (`OrbitCamera.rumble`)
+  - **blackout** (branch test): ไฟกะพริบ (WARN, `DayModifiers.power` สุ่มกะพริบ) → ดับ (ACTIVE, power → 0) เป็นช่วง / `main._process` ส่ง `modifiers.power` ให้ `look.power` → `Lighting.power` (คูณ SpotLight, ไฟเติมเหลือ `FILL_MIN`) + ลด `environment.ambient_light_energy` ถึง `ambient_min` เท่า (ต้องคืนค่าใน `stop()`) / วงนำทางเป็น unshaded จึงยังเห็นตอนดับ
+  - **fog**: `environment.fog_density` x `density_mult` ทั้งวัน (คืนค่าใน `stop()`) / `modifiers.environment` main ตั้งจาก `$WorldEnvironment`
+  - blackout/fog ยังไม่ได้ใส่ใน `GameData.DAYS` (เรื่องราว 5 วันไม่เปลี่ยน) ใช้ใน pool สุ่มของโหมด OVERTIME (`OVERTIME_MODIFIERS`) — อยากใส่วันไหน เพิ่มชื่อใน `modifiers` ของวันนั้น (ต้องมีบทใน `Dialogue.MODIFIER_INTRO` แล้ว)
 - `GameData.KIND_FIRST_DAY` = วันแรกที่ขยะพิเศษเริ่มอยู่ในถุง (`OIL_BARREL`/`STEEL_CRATE` วัน 2, `TV` วัน 3) / `GameData.kinds_for_day(day)`
   ใช้สร้าง `PieceBag` ใหม่ทุกวัน / `Dialogue.MODIFIER_INTRO` และ `Dialogue.KIND_INTRO` ถูกต่อท้ายบทต้นวันอัตโนมัติ
 - **ทีวีเปราะ (`Block.fragile`)**: เสียชิ้นนี้แบบไหนก็ได้ (หลุดขอบ / ตกพื้น / กองล้ม) → `_register_fail(key, true)` →

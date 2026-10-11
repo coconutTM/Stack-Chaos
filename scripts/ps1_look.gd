@@ -12,6 +12,12 @@ var target_y := 0.0:        # ความสูงกองที่ไฟค�
 		if _lighting:
 			_lighting.target_y = v
 
+var power := 1.0:           # กำลังไฟทั้งหมด 0-1 (DayModifiers blackout ตั้ง)
+	set(v):
+		power = v
+		if _lighting:
+			_lighting.power = v
+
 var _lighting: Lighting
 
 signal flickered

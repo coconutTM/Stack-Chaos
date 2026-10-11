@@ -11,12 +11,15 @@ const LIGHT_COLOR := Color(1.0, 0.88, 0.66)
 # ไฟเติมแสงจันทร์ (ไม่กะพริบ ไม่มีเงา) ส่องเฉียงจากด้านข้าง ให้แต่ละหน้าของขยะสว่างไม่เท่ากัน → อ่านรูปทรงออก
 const FILL_COLOR := Color(0.55, 0.64, 0.9)
 const FILL_ENERGY := 0.45
+const FILL_MIN := 0.5          # ตอนไฟดับ (power = 0) ไฟเติมเหลือกี่เท่า
 
 signal flickered   # ไฟวูบรอบใหม่เริ่ม (ไว้เล่นเสียงฮัม)
 
 var target_y := 0.0            # main.gd ตั้งเป็น tower_top
+var power := 1.0               # 0-1 คูณกำลังไฟทั้งหมด (ตัวปรับ BLACKOUT ตั้งผ่าน Ps1Look.power) / ไฟเติมไม่ดับสนิท เหลือ FILL_MIN
 
 var _spot: SpotLight3D
+var _fill: DirectionalLight3D
 var _y := 0.0
 var _clock := 0.0
 var _next_burst := 4.0
@@ -34,11 +37,11 @@ func _ready() -> void:
 	add_child(_spot)
 	_apply_position()
 
-	var fill := DirectionalLight3D.new()
-	fill.light_color = FILL_COLOR
-	fill.light_energy = FILL_ENERGY
-	fill.rotation_degrees = Vector3(-35, 40, 0)
-	add_child(fill)
+	_fill = DirectionalLight3D.new()
+	_fill.light_color = FILL_COLOR
+	_fill.light_energy = FILL_ENERGY
+	_fill.rotation_degrees = Vector3(-35, 40, 0)
+	add_child(_fill)
 
 
 func _process(delta: float) -> void:
@@ -56,7 +59,8 @@ func _process(delta: float) -> void:
 	if _burst_left > 0.0:
 		_burst_left -= delta
 		energy *= 1.0 if randf() < 0.45 else randf_range(0.1, 0.5)
-	_spot.light_energy = energy
+	_spot.light_energy = energy * power
+	_fill.light_energy = FILL_ENERGY * lerpf(FILL_MIN, 1.0, power)
 
 
 func _apply_position() -> void:

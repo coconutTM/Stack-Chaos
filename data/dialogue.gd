@@ -43,6 +43,8 @@ const MODIFIER_INTRO := {
 	"wind": ["Wind today. It comes in gusts. Watch the warning on the screen."],
 	"rain": ["Rain. Everything's slick today. Slower hands."],
 	"shake": ["The ground shakes from time to time. Hold your pile together."],
+	"blackout": ["The power's unreliable tonight. When the lights die, trust the circle on the floor."],
+	"fog": ["Fog tonight. You won't see the top of the pile. Watch the meter."],
 }
 
 # ขยะพิเศษ (ต่อท้าย DAY_INTRO ในวันแรกที่ชนิดนั้นเริ่มมี)

@@ -11,6 +11,10 @@ signal clicked            # กดปุ่มใดก็ตาม (ไว้�
 # บรรทัดในหน้า CREDITS (ภาษาอังกฤษ เพราะฟอนต์ไม่มีอักษรไทย) — เพิ่มชื่อทีมที่นี่ได้
 const CREDITS_LINES := [
 	"A student project",
+	"683380290-0 Thakoon Moonwicha",
+	"683380294-2 Thanakon Meerit",
+	"683380299-2 Thanyaboon Sinthao",
+	"683380304-5 Poramet Jantamin",
 	"CP352203 Computer Game Development",
 	"",
 	"3D models: Kenney (CC0)",

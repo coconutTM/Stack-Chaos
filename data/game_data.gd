@@ -30,6 +30,10 @@ const MODIFIERS := {
 		"settled_mult": 0.3, "max_accel": 4.0},
 	"rain": {"label": "RAIN", "friction": 0.35},
 	"shake": {"label": "QUAKE", "interval": Vector2(8.0, 14.0), "warn": 1.5, "duration": 2.0, "accel": 3.5},
+	# blackout: ไฟกะพริบ (warn) แล้วดับ (duration) เป็นระยะ เหลือแต่ไฟเติมจางๆ + ambient จางลงเป็น ambient_min เท่า
+	"blackout": {"label": "BLACKOUT", "interval": Vector2(12.0, 18.0), "warn": 1.5, "duration": 2.5, "ambient_min": 0.35},
+	# fog: หมอกหนาทั้งวัน (fog_density x density_mult) มองยอดกองไม่ชัด ดูจากแถบความสูงแทน
+	"fog": {"label": "FOG", "density_mult": 2.5},
 }
 
 # เกรดท้ายวัน (เฉพาะวันที่ผ่าน) ตัดสินจากชิ้นที่เสีย (fails) และชิ้นที่เหลือไม่ได้ใช้ (spare = pieces - ชิ้นที่ใช้ไป)
@@ -65,7 +69,7 @@ const OVERTIME_HEIGHT_BASE := 10.0
 const OVERTIME_HEIGHT_STEP := 1.5
 const OVERTIME_PIECES_BASE := 12
 const OVERTIME_PIECE_STEP := 2
-const OVERTIME_MODIFIERS := ["wind", "rain", "shake"]
+const OVERTIME_MODIFIERS := ["wind", "rain", "shake", "blackout", "fog"]
 
 
 static func overtime_day(n: int) -> Dictionary:

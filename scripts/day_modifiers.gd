@@ -1,7 +1,8 @@
 class_name DayModifiers
 extends Node
 
-# ตัวปรับของวัน: wind (ลมเป็นระยะ มีสัญญาณเตือน), rain (เสียดทานต่ำ + ฝนตก), shake (พื้นสั่นเป็นช่วง)
+# ตัวปรับของวัน: wind (ลมเป็นระยะ มีสัญญาณเตือน), rain (เสียดทานต่ำ + ฝนตก), shake (พื้นสั่นเป็นช่วง),
+# blackout (ไฟกะพริบแล้วดับเป็นช่วง → ตั้ง power ให้ main ส่งต่อไฟ + ลด ambient), fog (หมอกหนาทั้งวัน)
 # ค่าจูนอยู่ใน GameData.MODIFIERS / วันไหนใช้ตัวไหนอยู่ใน GameData.DAYS[i].modifiers
 # main.gd เรียก start()/stop() ตอนต้น/จบวัน และตั้ง running / follow_y ทุกเฟรม
 
@@ -15,6 +16,8 @@ var blocks_root: Node3D
 var camera: OrbitCamera
 var running := false      # true เฉพาะตอนกำลังเล่น (HOLDING/WAITING) ตอน boss พูดหยุดนับเวลา
 var follow_y := 0.0       # ความสูงกอง (ให้ฝนตามขึ้นไป)
+var environment: Environment   # main ตั้งให้ (fog / ambient ของ blackout) — แก้แล้วต้องคืนค่าใน stop() เหมือน friction
+var power := 1.0          # กำลังไฟ 0-1 (blackout ลดลง) main ส่งต่อให้ Ps1Look.power ทุกเฟรม
 
 var _mods: Array = []
 var _original_friction := -1.0
@@ -23,6 +26,11 @@ var _rain: CPUParticles3D
 # สถานะเป็นรายตัวปรับ: {phase, left}
 var _wind := {"phase": Phase.IDLE, "left": 0.0, "dir": Vector3.RIGHT}
 var _shake := {"phase": Phase.IDLE, "left": 0.0}
+var _blackout := {"phase": Phase.IDLE, "left": 0.0}
+var _orig_density := -1.0
+var _orig_ambient := -1.0
+var _flicker_left := 0.0   # ตอนไฟกะพริบ (WARN) สุ่มกำลังไฟใหม่ทุกช่วงสั้นๆ
+var _flicker_value := 1.0
 var _clock := 0.0
 
 
@@ -33,6 +41,13 @@ func start(mods: Array) -> void:
 		_wind = {"phase": Phase.IDLE, "left": _random_interval("wind"), "dir": Vector3.RIGHT}
 	if _mods.has("shake"):
 		_shake = {"phase": Phase.IDLE, "left": _random_interval("shake")}
+	if _mods.has("blackout"):
+		_blackout = {"phase": Phase.IDLE, "left": _random_interval("blackout")}
+		if environment:
+			_orig_ambient = environment.ambient_light_energy
+	if _mods.has("fog") and environment:
+		_orig_density = environment.fog_density
+		environment.fog_density = _orig_density * float(GameData.MODIFIERS.fog.density_mult)
 	if _mods.has("rain"):
 		_original_friction = _physics.friction
 		_physics.friction = float(GameData.MODIFIERS.rain.friction)
@@ -44,6 +59,15 @@ func stop() -> void:
 	_mods = []
 	_wind = {"phase": Phase.IDLE, "left": 0.0, "dir": Vector3.RIGHT}
 	_shake = {"phase": Phase.IDLE, "left": 0.0}
+	_blackout = {"phase": Phase.IDLE, "left": 0.0}
+	power = 1.0
+	if environment:   # คืนค่า Environment (resource เดียวทั้งเกม)
+		if _orig_density >= 0.0:
+			environment.fog_density = _orig_density
+		if _orig_ambient >= 0.0:
+			environment.ambient_light_energy = _orig_ambient
+	_orig_density = -1.0
+	_orig_ambient = -1.0
 	if _original_friction >= 0.0:
 		_physics.friction = _original_friction   # คืนค่าเสียดทาน (resource ถูกแชร์ทั้งเกม)
 		_original_friction = -1.0
@@ -75,15 +99,22 @@ func status_text(yaw: float) -> String:
 		parts.append("RUMBLING...")
 	elif _shake.phase == Phase.ACTIVE:
 		parts.append("EARTHQUAKE!")
+	if _blackout.phase == Phase.WARN:
+		parts.append("POWER FLICKERING...")
+	elif _blackout.phase == Phase.ACTIVE:
+		parts.append("BLACKOUT!")
 	return "  ".join(parts)
 
 
 func _process(delta: float) -> void:
 	if _rain:
 		_rain.global_position = Vector3(0.0, follow_y + 14.0, 0.0)
+	_update_power(delta)
 	if not running:
 		return
 	_clock += delta
+	if _mods.has("blackout"):
+		_step(_blackout, "blackout", delta)
 	if _mods.has("wind"):
 		_step(_wind, "wind", delta)
 	if _mods.has("shake"):
@@ -110,6 +141,25 @@ func _physics_process(_delta: float) -> void:
 			b.apply_central_force(dir * accel * b.mass)
 
 
+# กำลังไฟตามเฟส blackout: IDLE = เต็ม / WARN = กะพริบสุ่ม / ACTIVE = ดับ (ไหลลงเร็ว) / แล้วปรับ ambient ตาม
+func _update_power(delta: float) -> void:
+	if not _mods.has("blackout"):
+		return
+	match _blackout.phase:
+		Phase.WARN:
+			_flicker_left -= delta
+			if _flicker_left <= 0.0:
+				_flicker_left = randf_range(0.04, 0.12)
+				_flicker_value = randf_range(0.1, 1.0)
+			power = _flicker_value
+		Phase.ACTIVE:
+			power = move_toward(power, 0.0, delta * 6.0)
+		_:
+			power = move_toward(power, 1.0, delta * 4.0)
+	if environment and _orig_ambient >= 0.0:
+		environment.ambient_light_energy = _orig_ambient * lerpf(float(GameData.MODIFIERS.blackout.ambient_min), 1.0, power)
+
+
 # เฟสของตัวปรับที่เป็นช่วง: IDLE → WARN → ACTIVE → IDLE
 func _step(s: Dictionary, key: String, delta: float) -> void:
 	var cfg: Dictionary = GameData.MODIFIERS[key]
@@ -119,7 +169,7 @@ func _step(s: Dictionary, key: String, delta: float) -> void:
 			# สั่นจอค้างตลอดช่วง: แผ่นดินไหวครืนเบาๆ ตอนเตือนแล้วแรงตอนเกิดจริง / ลมสั่นนิดๆ ตอนพัด
 			if s.phase == Phase.WARN and key == "shake":
 				camera.rumble(0.15)
-			elif s.phase == Phase.ACTIVE:
+			elif s.phase == Phase.ACTIVE and key != "blackout":
 				camera.rumble(0.2 if key == "wind" else 0.45)
 		return
 	match s.phase:
