@@ -8,6 +8,9 @@ const BASE_ENERGY := 6.0
 const HEIGHT_ABOVE := 11.0     # ไฟอยู่เหนือยอดกองเท่านี้
 const FOLLOW := 3.0
 const LIGHT_COLOR := Color(1.0, 0.88, 0.66)
+# ไฟเติมแสงจันทร์ (ไม่กะพริบ ไม่มีเงา) ส่องเฉียงจากด้านข้าง ให้แต่ละหน้าของขยะสว่างไม่เท่ากัน → อ่านรูปทรงออก
+const FILL_COLOR := Color(0.55, 0.64, 0.9)
+const FILL_ENERGY := 0.45
 
 signal flickered   # ไฟวูบรอบใหม่เริ่ม (ไว้เล่นเสียงฮัม)
 
@@ -30,6 +33,12 @@ func _ready() -> void:
 	_spot.rotation_degrees = Vector3(-90, 0, 0)   # ชี้ลงตรงๆ
 	add_child(_spot)
 	_apply_position()
+
+	var fill := DirectionalLight3D.new()
+	fill.light_color = FILL_COLOR
+	fill.light_energy = FILL_ENERGY
+	fill.rotation_degrees = Vector3(-35, 40, 0)
+	add_child(fill)
 
 
 func _process(delta: float) -> void:

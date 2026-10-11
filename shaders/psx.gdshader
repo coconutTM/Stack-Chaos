@@ -10,9 +10,10 @@ uniform vec4 albedo : source_color = vec4(0.5, 0.5, 0.5, 1.0);
 uniform sampler2D albedo_tex : source_color, filter_nearest, hint_default_white;
 uniform vec4 emission_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 1.0;
-// ตาราง snap ในจอ (NDC) ยิ่งน้อยยิ่งสั่นหยาบ / ค่าเริ่มต้นเป็นครึ่งหนึ่งของ viewport 426x240
-uniform vec2 snap_grid = vec2(213.0, 120.0);
-uniform float light_steps = 4.0;
+// ตาราง snap ในจอ (NDC) ยิ่งน้อยยิ่งสั่นหยาบ / ค่าเริ่มต้น = ขนาด viewport 426x240 (เดิม 213x120 สั่นจนขอบบิด)
+uniform vec2 snap_grid = vec2(426.0, 240.0);
+// จำนวนขั้นของแสง (เดิม 4 หน้ากล่องสว่างเท่ากันจนดูแบน)
+uniform float light_steps = 6.0;
 
 void vertex() {
 	vec4 clip = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(VERTEX, 1.0));

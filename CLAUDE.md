@@ -319,7 +319,6 @@ main.gd สร้าง `Crane` และ `DropGuide` เองใน `_ready()`
 ```
 Main (Node3D)                ← scripts/main.gd
 ├── WorldEnvironment         (ProceduralSky, ฟ้าสีเทาสว่าง — ยังไม่ใช่ลุค PS1 มืด)
-├── DirectionalLight3D       (shadow_enabled)
 ├── Ground (CSGBox3D)        9×1×9, y = 0.7, use_collision = true (sized to match BOUND — see §7)
 ├── Camera3D                 (ตำแหน่ง/มุมถูก override ในโค้ดตอน _ready)
 ├── Blocks (Node3D)          ← parent ของบล็อกที่ spawn ทุกชิ้น
@@ -366,8 +365,8 @@ Main (Node3D)                ← scripts/main.gd
 
 - `scripts/ps1_look.gd` (`Ps1Look`) — รวมลุคไว้ที่เดียว (main.gd สร้าง): ตั้ง material พื้นแท่น + สร้าง `Junkyard`, `Lighting`, `PostFx`
   ลบ node นี้ออกจาก `main.gd` = ได้ฉากเรียบกลับมา
-- `Environment` ใน `main.tscn`: พื้นหลังดำ, ambient ต่ำสีน้ำเงินเทา, fog (`fog_density 0.022`) / **ไม่มี DirectionalLight แล้ว**
-- `scripts/lighting.gd` (`Lighting`) — SpotLight3D ดวงเดียวเหนือกอง ตามความสูงกอง + กะพริบ (สั่นเบาๆ + ไฟวูบสุ่มทุก 4–10 วิ)
+- `Environment` ใน `main.tscn`: พื้นหลังดำ, ambient ต่ำสีน้ำเงินเทา, fog (`fog_density 0.022`) / **ไม่มี DirectionalLight ใน `main.tscn`** (ไฟเติมสร้างใน `lighting.gd`)
+- `scripts/lighting.gd` (`Lighting`) — SpotLight3D เหนือกอง ตามความสูงกอง + กะพริบ (สั่นเบาๆ + ไฟวูบสุ่มทุก 4–10 วิ) + DirectionalLight3D ไฟเติมแสงจันทร์อ่อนๆ (`FILL_*` ไม่กะพริบ) ส่องเฉียงให้หน้าขยะสว่างไม่เท่ากัน อ่านรูปทรงออก
   **ไม่เปิด shadow**: vertex snapping ทำให้เงาเพี้ยน และประหยัดบนเว็บ
 - `shaders/psx.gdshader` — spatial shader เขียนเอง: vertex snapping (ปัดตำแหน่งเป็นกริด NDC `snap_grid`) + แสงแบบเป็นขั้น
   (`light_steps`) / สี = `albedo × vertex COLOR × albedo_tex` (texture palette ของโมเดล Kenney, filter nearest)
