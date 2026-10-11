@@ -54,6 +54,7 @@ var quota_height := 0.0
 var max_pieces := 0
 var score := 0              # ขยะที่วางสำเร็จตลอดการเล่นรอบนี้ (ข้ามวัน)
 var money := 0              # เงินเดือนสะสมของรอบนี้ (จากหน้าสรุปผลงานท้ายวัน)
+var trophy_bonus := 0       # โบนัสจาก GOLD TROPHY ที่วางนิ่งได้ในวันนี้ (บวกเข้า money ตอนสรุปผลงาน)
 var failed_attempts := 0    # หลุดกองในวันนี้
 var pieces_used := 0        # ชิ้นที่ spawn ในวันนี้
 var tower_top := 0.0
@@ -213,6 +214,10 @@ func _physics_process(delta: float) -> void:
 			last_settled = current
 			_reset_time()
 			score += 1
+			if current.kind == Block.Kind.GOLD_TROPHY:   # ถ้วยทองวางนิ่งได้ = โบนัสเงิน
+				trophy_bonus += GameData.TROPHY_BONUS
+				Effects.popup(self, current.global_position + Vector3(0.0, 1.8, 0.0), "TROPHY +$%d" % GameData.TROPHY_BONUS, Color(1.0, 0.85, 0.2))
+				sfx.play("item_get")
 			var prev_top := tower_top
 			recalc_tower_top()
 			_popup_progress(prev_top)
@@ -293,6 +298,7 @@ func _start_day() -> void:
 	best_height = 0.0
 	failed_attempts = 0
 	pieces_used = 0
+	trophy_bonus = 0
 	_near_said = false
 	_fragile_said = false
 	_first_drop_said = false
@@ -406,7 +412,12 @@ func _show_review() -> int:
 	var grade := GameData.grade_for(failed_attempts, spare)
 	var info: Dictionary = GameData.GRADES[grade]
 	var wage := GameData.wage_for(day, grade, spare)
-	money += wage
+	money += wage + trophy_bonus
+	var rows: Array = [["PIECES LEFT", str(spare)], ["PIECES LOST", str(failed_attempts)]]
+	if trophy_bonus > 0:
+		rows.append(["TROPHY BONUS", "+$%d" % trophy_bonus])
+	rows.append(["WAGE", "$%d" % wage])
+	rows.append(["TOTAL", "$%d" % money])
 	var new_best := false
 	if not overtime:   # OVERTIME ไม่จดเกรดรายวัน (ใช้สถิติจำนวนกะแทน)
 		var had_record: bool = Settings.best_grades[day - 1] != -1
@@ -416,12 +427,7 @@ func _show_review() -> int:
 		"grade": info.id,
 		"color": info.color,
 		"new_best": new_best,
-		"rows": [
-			["PIECES LEFT", str(spare)],
-			["PIECES LOST", str(failed_attempts)],
-			["WAGE", "$%d" % wage],
-			["TOTAL", "$%d" % money],
-		],
+		"rows": rows,
 		"boss": Dialogue.GRADE_LINES[info.id].pick_random(),
 	})
 	return grade
@@ -831,6 +837,8 @@ func _refresh_items() -> void:
 			parts.append("FRAGILE!")
 		elif current.slippery:
 			parts.append("SLIPPERY")
+		elif current.bouncy:
+			parts.append("BOUNCY")
 
 	var next_text := ""
 	if items.clipboard_left > 0:

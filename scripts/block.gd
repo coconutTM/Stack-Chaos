@@ -3,10 +3,10 @@ extends RigidBody3D
 
 # ชนิดของบล็อก ⇄ ชื่อ scene ใน scenes/blocks/ (ดู Kind.SCENES)
 enum Kind { CRATE, PLANK, FRIDGE, BARREL, TIRE, SQUARE, CYLINDER, OIL_BARREL, TV, STEEL_CRATE, CAR,
-	CARDBOARD_BOX, TRASH_BIN, BUCKET, TOILET, SOFA }
-const KIND_COUNT := 16
+	CARDBOARD_BOX, TRASH_BIN, BUCKET, TOILET, SOFA, MATTRESS, GOLD_TROPHY }
+const KIND_COUNT := 18
 const KIND_NAMES := ["CRATE", "PLANK", "FRIDGE", "BARREL", "TIRE", "WASHER", "PIPE", "OIL", "TV", "STEEL", "CAR",
-	"BOX", "BIN", "BUCKET", "TOILET", "SOFA"]
+	"BOX", "BIN", "BUCKET", "TOILET", "SOFA", "BED", "TROPHY"]
 const CAR_SCALE := 0.4   # รถจริงยาว ~4 ม. ย่อให้เหลือ ~1.6 ม. ให้ขนาดพอดีกับขยะชิ้นอื่น   # เรียงตาม Kind (ใช้โชว์ใน UI)
 
 # ความหนืดที่ทำให้บล็อกที่ชิดกัน "ติด" กันเล็กน้อยคล้ายสไลม์ (หน่วง relative velocity
@@ -47,6 +47,8 @@ const SCENES := {
 	Kind.BUCKET: preload("res://scenes/blocks/block_bucket.tscn"),
 	Kind.TOILET: preload("res://scenes/blocks/block_toilet.tscn"),
 	Kind.SOFA: preload("res://scenes/blocks/block_sofa.tscn"),
+	Kind.MATTRESS: preload("res://scenes/blocks/block_mattress.tscn"),
+	Kind.GOLD_TROPHY: preload("res://scenes/blocks/block_gold_trophy.tscn"),
 }
 
 signal hit(impact: float)   # กระแทก (impact = ความเร็วก่อนชน x รากของมวล) main.gd เอาไปเล่นเสียง/สั่นจอ/ฝุ่น
@@ -55,6 +57,7 @@ const HIT_MIN := 2.5       # impact ต่ำกว่านี้ไม่ส�
 const HIT_COOLDOWN := 0.12
 
 @export var fragile := false    # เปราะ: เสียชิ้นนี้ (หลุดขอบ/ตกพื้น/กองล้ม) = โดนไล่ออกทันที (ตั้งใน .tscn)
+@export var bouncy := false    # เด้ง (ใช้แสดงคำเตือน ค่าเด้งจริงอยู่ที่ physics material ใน .tscn)
 @export var slippery := false   # ลื่น (ใช้แสดงคำเตือน ค่าความลื่นจริงอยู่ที่ physics material ใน .tscn)
 var kind := 0           # ชนิดของบล็อก (Kind) ตั้งโดย spawn()
 var taped := false      # โดน Duct Tape ติดตายกับกองแล้ว

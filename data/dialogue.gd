@@ -56,6 +56,8 @@ const KIND_INTRO := {
 	Block.Kind.TRASH_BIN: ["Trash bins. Yes, we throw away the trash cans too. Round. They roll."],
 	Block.Kind.SOFA: ["Somebody dumped a sofa. Long and flat. Use it as a floor."],
 	Block.Kind.BUCKET: ["Buckets. Small, light, round. Annoying. Like you."],
+	Block.Kind.GOLD_TROPHY: ["A gold trophy in the pile! Keep it on the stack and I'll pay a bonus."],
+	Block.Kind.MATTRESS: ["Mattresses. Light, flat and bouncy. Don't drop it from too high."],
 	Block.Kind.TOILET: ["Toilets. Don't ask where they came from. Odd shape, heavy base."],
 }
 

@@ -45,6 +45,7 @@ const GRADES := [
 	{"id": "C", "max_fails": 99, "min_spare": 0, "bonus": 0, "color": Color(0.75, 0.75, 0.75)},
 ]
 const REWARD_MAX_GRADE := 1   # ได้เกรด A (index 1) หรือดีกว่า → boss ให้เลือกรางวัล item 1 ใน 3 ก่อนขึ้นวันใหม่
+const TROPHY_BONUS := 100      # โบนัสเงินเมื่อ GOLD TROPHY วางนิ่งบนกองได้ (ต่อชิ้น)
 const WAGE_BASE := 100        # ค่าแรงวันที่ 1
 const WAGE_PER_DAY := 25      # ค่าแรงเพิ่มต่อวัน
 const WAGE_PER_SPARE := 20    # เงินพิเศษต่อชิ้นที่เหลือ
@@ -94,6 +95,8 @@ const KIND_FIRST_DAY := {
 	Block.Kind.SOFA: 2,
 	Block.Kind.BUCKET: 3,
 	Block.Kind.TOILET: 4,
+	Block.Kind.GOLD_TROPHY: 2,
+	Block.Kind.MATTRESS: 3,
 }
 
 

@@ -268,10 +268,12 @@ dev console: **`/overtime [N]`** เริ่มที่กะ N ทันท�
 | `BUCKET` | `block_bucket.tscn` | Cylinder r `0.35` h `0.5` (วัน 3+) | `0.7` | `0.4` / `1.8` |
 | `TOILET` | `block_toilet.tscn` | Box `0.75×0.85×0.6` (วัน 4+) | `3.0` | `0.3` / `0.6` |
 | `SOFA` | `block_sofa.tscn` | Box `2.1×0.95×0.9` (แบนกว้าง วัน 2+) | `4.0` | `0.3` / `0.6` |
+| `MATTRESS` | `block_mattress.tscn` | Box `2.0×0.3×1.2` (เบา แบนกว้าง **เด้ง** `bounce 0.7` จาก `block_physics_bouncy.tres`, `bouncy = true` วัน 3+) | `0.9` | `0.3` / `0.6` |
+| `GOLD_TROPHY` | `block_gold_trophy.tscn` | Cylinder r `0.28` h `0.6` สีทองเรืองแสง (วัน 2+) วางนิ่งบนกอง = โบนัสเงิน `GameData.TROPHY_BONUS` (`main.trophy_bonus` → หน้าสรุป `TROPHY BONUS`) | `1.5` | `0.4` / `1.8` |
 
 โมเดลที่ใช้ต่อชนิด (`data/block_models.gd`): CRATE = ลัง, PLANK = กองไม้, FRIDGE = ตู้เย็น, BARREL = ถัง, SQUARE = เครื่องซักผ้า
 (ชื่อบน UI `WASHER`), OIL_BARREL = ถังเดียวกันย้อมเขียว (`tint`), TV = ทีวีจอตู้, STEEL_CRATE = เครื่องอบผ้าย้อมสีเหล็ก,
-ชนิดใหม่ 5 ชนิดใช้โมเดลชื่อเดียวกัน / TIRE, CYLINDER = primitive (ยังไม่มีโมเดลที่เข้ากัน)
+ชนิดใหม่ 5 ชนิดใช้โมเดลชื่อเดียวกัน / TIRE, CYLINDER, MATTRESS, GOLD_TROPHY = primitive (ยังไม่มีโมเดลที่เข้ากัน)
 
 Cylinder blocks (`BARREL`, `TIRE`) carry a much higher `angular_damp` (`1.8` vs `0.6`) because
 they **roll** — without strong damping a tipped barrel/tire keeps rolling almost indefinitely

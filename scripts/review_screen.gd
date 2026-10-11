@@ -37,8 +37,8 @@ func _ready() -> void:
 	_grade = _label(48, 44.0, 56.0)
 	_grade.pivot_offset = Vector2(213.0, 28.0)
 	_best = _label(8, 102.0, 10.0)
-	for i in 4:
-		_rows.append(_label(8, 120.0 + i * 13.0, 10.0))
+	for i in 5:   # ปกติ 4 แถว / มี TROPHY BONUS เพิ่มเป็น 5
+		_rows.append(_label(8, 114.0 + i * 12.0, 10.0))
 	_boss = _label(8, 184.0, 20.0)
 	_boss.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_boss.offset_left = 40.0
