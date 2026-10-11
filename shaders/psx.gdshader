@@ -21,6 +21,9 @@ void vertex() {
 		vec2 half_grid = snap_grid * 0.5;
 		ndc = floor(ndc * half_grid + 0.5) / half_grid;
 		POSITION = vec4(ndc * clip.w, clip.z, clip.w);
+	} else {
+		// vertex หลังกล้อง: ต้องตั้ง POSITION เสมอ ไม่งั้นได้ค่าขยะ → สามเหลี่ยมใหญ่ (พื้นลาน) ยืดมาบังแท่นบางมุมกล้อง
+		POSITION = clip;
 	}
 }
 

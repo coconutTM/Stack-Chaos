@@ -160,7 +160,7 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 (ชิ้นแรกของถุงใหม่ไม่ซ้ำชิ้นสุดท้ายของถุงเก่า)
 
 **โมเดล .glb (`scripts/model_library.gd`, `ModelLibrary.mesh(scene)`):** รวมชิ้นส่วนทั้งไฟล์เป็น `ArrayMesh` เดียว
-**รวม surface ที่ material เดียวกัน** (ลด draw call) + แปลงสีเป็น `Psx.material` (ชื่อ material มี "light" = เรืองแสง /
+**รวม surface ที่ material เดียวกัน** (ลด draw call) + แปลงสีเป็น `Psx.material` (ชื่อ material มี "lights" พหูพจน์ = เรืองแสง — `metalLight` ของ Kenney ไม่นับ /
 `vertex_color_use_as_albedo` = ใช้ vertex color, shader คูณ `COLOR`) + cache ตาม path / ใช้ทั้งรถและบล็อกขยะ
 
 **โมเดลบล็อกขยะ (ไม่บังคับ):** `data/block_models.gd` (`BlockModels`) — วาง `assets/models/blocks/<file>.glb` (ชื่อตาม `MODELS`
@@ -373,6 +373,7 @@ Main (Node3D)                ← scripts/main.gd
   (`light_steps`) / สี = `albedo × vertex COLOR × albedo_tex` (texture palette ของโมเดล Kenney, filter nearest)
   / `scripts/psx.gd` (`Psx.material(color, emission, energy, tex)`) สร้าง+cache material ตามสี
   **ทุก mesh ในเกมต้องใช้ `Psx.material()`** (บล็อกแปลงอัตโนมัติจากสีใน `.tscn` ที่ `Block._ready()` ผ่าน `Psx.from_standard()`)
+  **ถ้าแก้ `vertex()` ต้องตั้ง `POSITION` ทุกกิ่ง** (รวม vertex หลังกล้อง `clip.w <= 0`) — ไม่งั้นได้ค่าขยะ พื้นลาน 160 ม. เคยยืดมาบังแท่นเป็นเงาดำบางมุมกล้อง
 - `shaders/psx_post.gdshader` + `scripts/post_fx.gd` — โพสต์โปรเซสเต็มจอ: ลดสีเหลือ 5 บิต/ช่อง + dithering Bayer 4x4
   ใช้ `hint_screen_texture` / อยู่ `CanvasLayer` layer 0 (ใต้ UI ทุกชั้น จึงไม่ทำให้ตัวหนังสือแตก) และ `mouse_filter = IGNORE`
 - `scripts/junkyard.gd` (`Junkyard`) — ลานดินระดับพื้น (`FLOOR_Y` 0.6 มีชนจริง `WorldBoundaryShape3D`; แท่นวางสูงกว่าลาน 0.6 ม.) ของประดับห้ามอยู่ใน `CLEAR_RADIUS` 11 ม. จากแท่น (กล้องโคจร 9.5), กองขยะประดับ, รั้ววงกลม, เนินขยะไกลๆ, เสาไฟ 6 ต้น

@@ -2,7 +2,7 @@ class_name ModelLibrary
 extends RefCounted
 
 # โหลดโมเดล .glb → รวมทุกชิ้นส่วนเป็น ArrayMesh เดียว (รวม surface ที่ material เดียวกันเป็นก้อนเดียว ลด draw call)
-# แปลง material เป็นสไตล์ PS1 (สีเดิม / vertex color / ชื่อมี "light" = เรืองแสง) และ cache ตาม path ของไฟล์
+# แปลง material เป็นสไตล์ PS1 (สีเดิม / vertex color / ชื่อมี "lights" = เรืองแสง) และ cache ตาม path ของไฟล์
 # ใช้ทั้งรถ (CarModels) บล็อกขยะ (BlockModels) และของประดับฉาก (Junkyard)
 # texture สี (Kenney ใช้ palette เล็กๆ colormap.png) ส่งต่อให้ shader PS1 / tint = คูณสีทั้งโมเดล (เช่น ถังน้ำมันสีเขียว)
 
@@ -79,13 +79,14 @@ static func _uses_vertex_color(m: Material) -> bool:
 
 
 # สีเดิมของ material / vertex color = albedo ขาวแล้วให้สีมาจาก vertex แทน
-# ถ้าชื่อมีคำว่า "light" (Headlights, TailLights, BlueLights...) ให้เรืองแสงด้วยสีนั้น
+# ถ้าชื่อมีคำว่า "lights" (Headlights, TailLights, BlueLights...) ให้เรืองแสงด้วยสีนั้น
+# ต้องเป็นพหูพจน์ — Kenney ใช้ "metalLight" = โลหะสีอ่อน และ car_b มี "LightBlue" = สีตัวถัง (ไม่ใช่ไฟ)
 static func _psx(m: Material, tint: Color) -> Material:
 	var std := m as BaseMaterial3D
 	if std == null:
 		return Psx.material(Color(0.5, 0.5, 0.5) * tint)
 	var color := (Color.WHITE if std.vertex_color_use_as_albedo else std.albedo_color) * tint
 	color.a = 1.0
-	if std.resource_name.to_lower().contains("light"):
+	if std.resource_name.to_lower().contains("lights"):
 		return Psx.material(color, color, 1.4, std.albedo_texture)
 	return Psx.material(color, Color.BLACK, 1.0, std.albedo_texture)
