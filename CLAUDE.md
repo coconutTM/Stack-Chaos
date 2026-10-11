@@ -179,7 +179,7 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
   - **wind**: IDLE → WARN (เตือนพร้อมนับถอยหลังและลูกศรทิศตามมุมกล้อง) → ACTIVE (ชิ้นที่ยังไม่นิ่งโดน `min(force, มวล x max_accel)` N เต็มๆ / ชิ้นที่นิ่งแล้วโดน `settled_mult` เท่า → กองที่วางแล้วไม่ล้มเพราะลม ลมเป็นเรื่องจังหวะปล่อย)
   - **rain**: ลด `friction` ของ `resources/block_physics.tres` (ใช้ร่วมกันทั้งเกม **ต้องคืนค่าเสมอ** → `stop()` ทำให้) + ฝนเป็น `CPUParticles3D`
   - **shake**: ออกแรงแนวราบแกว่งเร็ว x มวล ทุกชิ้นได้ความเร่งเท่ากัน + จอสั่น (`OrbitCamera.rumble`)
-  - **blackout** (branch test): ไฟกะพริบ (WARN, `DayModifiers.power` สุ่มกะพริบ) → ดับ (ACTIVE, power → 0) เป็นช่วง / `main._process` ส่ง `modifiers.power` ให้ `look.power` → `Lighting.power` (คูณ SpotLight, ไฟเติมเหลือ `FILL_MIN`) + ลด `environment.ambient_light_energy` ถึง `ambient_min` เท่า (ต้องคืนค่าใน `stop()`) / วงนำทางเป็น unshaded จึงยังเห็นตอนดับ
+  - **blackout**: ไฟกะพริบ (WARN, `DayModifiers.power` สุ่มกะพริบ) → ดับ (ACTIVE, power → 0) เป็นช่วง / `main._process` ส่ง `modifiers.power` ให้ `look.power` → `Lighting.power` (คูณ SpotLight, ไฟเติมเหลือ `FILL_MIN`) + ลด `environment.ambient_light_energy` ถึง `ambient_min` เท่า (ต้องคืนค่าใน `stop()`) / วงนำทางเป็น unshaded จึงยังเห็นตอนดับ
   - **fog**: `environment.fog_density` x `density_mult` ทั้งวัน (คืนค่าใน `stop()`) / `modifiers.environment` main ตั้งจาก `$WorldEnvironment`
   - blackout/fog ยังไม่ได้ใส่ใน `GameData.DAYS` (เรื่องราว 5 วันไม่เปลี่ยน) ใช้ใน pool สุ่มของโหมด OVERTIME (`OVERTIME_MODIFIERS`) — อยากใส่วันไหน เพิ่มชื่อใน `modifiers` ของวันนั้น (ต้องมีบทใน `Dialogue.MODIFIER_INTRO` แล้ว)
 - `GameData.KIND_FIRST_DAY` = วันแรกที่ขยะพิเศษเริ่มอยู่ในถุง (`OIL_BARREL`/`STEEL_CRATE` วัน 2, `TV` วัน 3) / `GameData.kinds_for_day(day)`
@@ -221,23 +221,23 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
   `consume_insurance()` ถูกเรียกในลูปหลุดขอบก่อนนับ `failed_attempts` (ชิ้นยังนับเป็นที่ใช้ไปแล้ว)
 - คอมเมนต์ของ boss ตอนนี้อยู่ด้านบนจอ (เริ่มหลัง HUD) ส่วนบทพูดบล็อกอยู่ด้านล่าง เพื่อไม่บังแถบ item
 
-**สรุปผลงานท้ายวัน (branch test):** ผ่านวัน → boss พูด `DAY_PASS` → `main._show_review()` → `ReviewScreen` (`scripts/review_screen.gd`, CanvasLayer 12) →
+**สรุปผลงานท้ายวัน:** ผ่านวัน → boss พูด `DAY_PASS` → `main._show_review()` → `ReviewScreen` (`scripts/review_screen.gd`, CanvasLayer 12) →
 เกรด S/A/B/C จาก `GameData.grade_for(failed_attempts, spare)` (spare = `max_pieces - pieces_used`, เกณฑ์อยู่ใน `GameData.GRADES`) + ค่าแรง `GameData.wage_for()` บวกเข้า
 `main.money` (รีเซ็ตใน `_start_run()` / `/day`) / แถวผลโผล่ทีละแถว คลิก = ข้ามอนิเมชัน → คลิกอีกที = ปิด (`await review.show_review(data)`,
 `review.abort()` ใน `_debug_day` เพื่อตัด coroutine ค้าง) / `Settings.record_grade(day, grade)` จดเกรดดีสุดของแต่ละวัน (`Settings.best_grades` ใน
 `user://settings.cfg`) โชว์บนหน้า title (`BEST GRADES` ใน `TitleMenu`) / คำพูด boss ตามเกรด = `Dialogue.GRADE_LINES` / จบเกมโชว์ `TOTAL EARNED`
 **ทดสอบด้วยสคริปต์แล้วอย่าลืมคืน `settings.cfg`** (probe ที่เล่นจนผ่านวันจะเขียนเกรดลงไฟล์จริงของผู้เล่น)
 
-**หน้า SETTINGS (branch test):** `SettingsPanel` (`scripts/settings_panel.gd`, CanvasLayer 16, `PROCESS_MODE_ALWAYS` ใช้ได้ตอน pause) เปิดจากปุ่ม SETTINGS ที่หน้า title และเมนู pause (main สร้างหลัง `PauseMenu` เพื่อให้ Esc ปิดหน้านี้ก่อน) /
+**หน้า SETTINGS:** `SettingsPanel` (`scripts/settings_panel.gd`, CanvasLayer 16, `PROCESS_MODE_ALWAYS` ใช้ได้ตอน pause) เปิดจากปุ่ม SETTINGS ที่หน้า title และเมนู pause (main สร้างหลัง `PauseMenu` เพื่อให้ Esc ปิดหน้านี้ก่อน) /
 ค่าอยู่ใน `Settings`: `volume` (0-1 → `Settings.apply_audio()` ตั้ง bus 0 เป็น dB + mute แยกกันด้วยปุ่ม SND), `camera_sens` (0.5-2.0 คูณ `OrbitCamera.DRAG_SENS`),
 `retro_look` (false = ปิด `PostFx` (dither + ลดสี) ผ่านกลุ่ม `retro_post` → `set_enabled()` และปิด vertex snapping ผ่าน `Psx.set_snap()` = ตั้ง `snap_grid` ของทุก material ใน cache เป็น `Psx.SNAP_OFF`)
 บันทึกเมื่อกด BACK / Esc / ปิด / **material ใหม่ที่สร้างหลังปิด snap ก็ได้ค่าปิดด้วย** (`Psx.snap_enabled`) / ใช้เมื่อ FPS บนเว็บไม่พอ
 
-**เลือกรางวัล item (branch test):** หลังหน้าสรุปผลงาน ถ้าเกรด ≤ `GameData.REWARD_MAX_GRADE` (A หรือดีกว่า) และคลังยังไม่เต็ม และยังมีวันต่อไป →
+**เลือกรางวัล item:** หลังหน้าสรุปผลงาน ถ้าเกรด ≤ `GameData.REWARD_MAX_GRADE` (A หรือดีกว่า) และคลังยังไม่เต็ม และยังมีวันต่อไป →
 `ItemChoice` (`scripts/item_choice.gd`, CanvasLayer 12) โชว์การ์ด 3 ใบจาก `ItemData.roll_distinct(3)` (ไม่ซ้ำ ตามน้ำหนัก) `await item_choice.choose(ids, boss_line)` คืน id ที่เลือก
 (`""` = ถูกตัดโดย `abort()` ใน `/day` / `/overtime`) → `items.give(id)` / แจก item สุ่มตอนต้นวันถัดไปยังเกิดตามเดิม (`GIVE_PER_DAY`) / บท boss = `Dialogue.REWARD_LINES`
 
-**โหมด OVERTIME (branch test):** ปลดล็อกหลังจบ 5 วัน (`Settings.night_shift`) / ปุ่ม OVERTIME บนหน้า title (`_start_run(true)`) /
+**โหมด OVERTIME:** ปลดล็อกหลังจบ 5 วัน (`Settings.night_shift`) / ปุ่ม OVERTIME บนหน้า title (`_start_run(true)`) /
 `main.overtime = true`, `day = DAYS.size() + เลขกะ` (นับต่อจากวันที่ 5 ให้ `kinds_for_day()` ครบทุกชนิด) / `_shift()` = เลขกะ /
 ข้อมูลกะมาจาก `GameData.overtime_day(n)` (โควต้า +`OVERTIME_HEIGHT_STEP` ต่อกะ, ชิ้น +`OVERTIME_PIECE_STEP`, สุ่มตัวปรับ 1 อย่าง (กะ 4+ = 2 อย่าง) จาก `OVERTIME_MODIFIERS`)
 เก็บไว้ที่ `main._cur_day` (**อย่าเรียก `overtime_day()` ซ้ำในวันเดียวกัน** ตัวปรับสุ่มใหม่ทุกครั้ง) / บทพูด `Dialogue.OVERTIME_FIRST/_INTRO/_PASS` (ตัวแปรใหม่ `{shift}`) /
@@ -472,4 +472,7 @@ Main (Node3D)                ← scripts/main.gd
 7. [x] Phase 5: ตัวปรับของวัน (ลม/ฝน/แผ่นดินไหว) + ขยะพิเศษ (น้ำมัน/ทีวีเปราะ/ลังเหล็ก) + สั่นจอ (รอทดสอบ)
 8. [x] Phase 6: เสียง (สังเคราะห์ชั่วคราว + รองรับไฟล์จริง), ฟอนต์ pixel, ปุ่มปิดเสียง, ฉากจบ (รอคุณหาไฟล์เสียงจริงมาใส่ `audio/`)
 9. [x] โมเดล Kenney (CC0) แทนขยะ 8 ชนิด + ขยะใหม่ 5 ชนิด + ของประดับ/อาคารในฉาก (เครนคง primitive) (รอทดสอบ)
-10. [ ] Phase 7: อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ + README บน GitHub
+10. [x] Phase 8 (พัฒนาบน branch `test` แล้ว merge): เส้นโควต้า 3D + แถบวัดความสูง + ข้อความเด้ง, เมนู title, ใบเกรด S/A/B/C + เงินเดือน,
+    โหมด OVERTIME, เลือกรางวัล item 1 ใน 3, ตัวปรับ BLACKOUT/FOG, ขยะ MATTRESS/GOLD TROPHY, หน้า SETTINGS, ความสูงนับจากผิวแท่น,
+    กองสูงนิ่งขึ้น (`COM_DROP`/`MIN_ANGULAR_DAMP`), ฐานกองไม่เป็นชิ้นเล็ก/กลม (รอทดสอบด้วยมือ + เช็ค FPS บนเว็บ)
+11. [ ] Phase 7: อัปเดตรายงานออกแบบเกมให้ตรงกับธีมโรงขยะ (Claude Docs) + README บน GitHub (เพิ่มฟีเจอร์ Phase 8)
