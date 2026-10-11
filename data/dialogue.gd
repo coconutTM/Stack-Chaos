@@ -87,6 +87,24 @@ const GRADE_LINES := {
 	"C": ["That was too close.", "You used every last piece. Careless.", "It counts. Don't make it a habit."],
 }
 
+# โหมด OVERTIME: กะแรก (ตัวแปร {shift} = เลขกะ) / กะถัดๆ ไปสุ่มหนึ่งชุด / ท้ายกะสุ่มหนึ่งชุด
+const OVERTIME_FIRST := [
+	"Five days done. Most people quit by now.",
+	"This is overtime. There's no last day. The quota only goes up.",
+	"Lose control of the pile and it ends. Let's see how long you last.",
+	"{quota} meters. {pieces} pieces.",
+]
+const OVERTIME_INTRO := [
+	["Shift {shift}. Still here.", "{quota} meters. {pieces} pieces."],
+	["Shift {shift}. The pile doesn't care how tired you are.", "{quota} meters. {pieces} pieces."],
+	["Shift {shift}. Nobody's counting. Except me.", "{quota} meters. {pieces} pieces."],
+]
+const OVERTIME_PASS := [
+	["{height} meters.", "Again."],
+	["{height} meters. Don't slow down.", "Next shift."],
+	["{height} meters. Barely a scratch.", "Keep going."],
+]
+
 # ท้ายวัน — โดนไล่ออก (แยกสาเหตุ)
 const FIRED_FAILS := [
 	"You lost {fails} pieces.",

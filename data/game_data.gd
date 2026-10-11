@@ -59,6 +59,26 @@ static func wage_for(day: int, grade: int, spare: int) -> int:
 	return WAGE_BASE + WAGE_PER_DAY * (day - 1) + WAGE_PER_SPARE * maxi(spare, 0) + int(GRADES[grade].bonus)
 
 
+# โหมด OVERTIME (ไม่มีที่สิ้นสุด ปลดล็อกหลังจบ 5 วัน): กะที่ n (1, 2, 3...) สร้างข้อมูลวันแบบเดียวกับ DAYS
+# โควต้าเพิ่ม OVERTIME_HEIGHT_STEP ต่อกะ + ชิ้นเพิ่ม OVERTIME_PIECE_STEP (สัดส่วนเดียวกับวันที่ 5) / ตัวปรับสุ่มจาก OVERTIME_MODIFIERS
+const OVERTIME_HEIGHT_BASE := 10.0
+const OVERTIME_HEIGHT_STEP := 1.5
+const OVERTIME_PIECES_BASE := 12
+const OVERTIME_PIECE_STEP := 2
+const OVERTIME_MODIFIERS := ["wind", "rain", "shake"]
+
+
+static func overtime_day(n: int) -> Dictionary:
+	var pool := OVERTIME_MODIFIERS.duplicate()
+	pool.shuffle()
+	var count := mini(1 if n < 4 else 2, pool.size())   # กะ 1-3 ตัวปรับ 1 อย่าง / กะ 4+ สองอย่าง
+	return {
+		"height": OVERTIME_HEIGHT_BASE + OVERTIME_HEIGHT_STEP * n,
+		"pieces": OVERTIME_PIECES_BASE + OVERTIME_PIECE_STEP * n,
+		"modifiers": pool.slice(0, count),
+	}
+
+
 # ขยะพิเศษ: วันแรกที่เริ่มมีในถุง (ชนิดที่ไม่ได้ระบุ = มีตั้งแต่วันที่ 1)
 const KIND_FIRST_DAY := {
 	Block.Kind.OIL_BARREL: 2,

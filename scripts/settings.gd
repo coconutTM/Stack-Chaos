@@ -7,6 +7,7 @@ const PATH := "user://settings.cfg"
 
 static var muted := false
 static var night_shift := false   # เคยจบเกมครบ 5 วันแล้ว (ตอน title/บทพูดวันแรกเปลี่ยนไปนิดหน่อย)
+static var best_overtime := 0       # กะ OVERTIME ที่ผ่านได้มากสุดในรอบเดียว
 static var best_grades: Array = [-1, -1, -1, -1, -1]   # เกรดดีสุดของแต่ละวัน (index ใน GameData.GRADES, 0 = S, -1 = ยังไม่เคยผ่าน)
 
 
@@ -16,6 +17,7 @@ static func load_all() -> void:
 		return
 	muted = cfg.get_value("audio", "muted", false)
 	night_shift = cfg.get_value("progress", "night_shift", false)
+	best_overtime = cfg.get_value("progress", "best_overtime", 0)
 	var saved: Variant = cfg.get_value("progress", "best_grades", best_grades)
 	if saved is Array and saved.size() == best_grades.size():
 		best_grades = saved
@@ -26,6 +28,7 @@ static func save_all() -> void:
 	cfg.set_value("audio", "muted", muted)
 	cfg.set_value("progress", "night_shift", night_shift)
 	cfg.set_value("progress", "best_grades", best_grades)
+	cfg.set_value("progress", "best_overtime", best_overtime)
 	cfg.save(PATH)
 
 

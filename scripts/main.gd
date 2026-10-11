@@ -38,7 +38,9 @@ var state := State.TITLE
 var current: Block
 var last_settled: Block     # ชิ้นล่าสุดที่นิ่ง (เป้าหมายของ Duct Tape)
 var stack_base: Block       # ฐานของกอง = ชิ้นเดียวที่อนุญาตให้นอนบนพื้น (ชิ้นแรกที่นิ่งของกอง)
-var day := 1
+var day := 1                # โหมด OVERTIME: day = DAYS.size() + เลขกะ (นับต่อจากวันที่ 5 เพื่อให้ขยะ/ตัวปรับครบทุกชนิด)
+var overtime := false       # true = กำลังเล่นโหมด OVERTIME (ไม่มีวันสุดท้าย โดนไล่ออก = จบรอบ)
+var _cur_day: Dictionary = GameData.DAYS[0]   # ข้อมูลของวันที่กำลังเล่น (overtime สุ่มตัวปรับ จึงต้องเก็บไว้ ไม่สร้างซ้ำ)
 var quota_height := 0.0
 var max_pieces := 0
 var score := 0              # ขยะที่วางสำเร็จตลอดการเล่นรอบนี้ (ข้ามวัน)
@@ -101,6 +103,7 @@ func _ready() -> void:
 	modifiers.phase_changed.connect(_on_modifier_phase)
 	var console := DevConsole.new()
 	console.register("day", "/day N  start a fresh run at day N (1-%d)" % GameData.DAYS.size(), _debug_day)
+	console.register("overtime", "/overtime [N]  start overtime at shift N (default 1)", _debug_overtime)
 	console.register("give", "/give <item|all>  add items", _debug_give)
 	add_child(console)
 	pause_menu = PauseMenu.new()
@@ -208,6 +211,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.TITLE:
 			if event.button_index == MOUSE_BUTTON_LEFT:
 				_start_run()
+			elif event.button_index == MOUSE_BUTTON_RIGHT and Settings.night_shift:   # OVERTIME ปลดล็อกหลังจบเกม (เมนูปุ่มจริงมาทีหลัง)
+				_start_run(true)
 		State.FIRED, State.ENDING:   # กลับไปหน้าแรกก่อน (ไม่เริ่มวันที่ 1 ทันที)
 			if event.button_index == MOUSE_BUTTON_LEFT and _screen_ready():
 				_go_title()
@@ -238,8 +243,9 @@ func _on_camera_tapped() -> void:
 
 # ---------- วัน / รอบการเล่น ----------
 
-func _start_run() -> void:
-	day = 1
+func _start_run(is_overtime := false) -> void:
+	overtime = is_overtime
+	day = GameData.DAYS.size() + 1 if is_overtime else 1
 	score = 0
 	money = 0
 	items.reset_run()
@@ -253,7 +259,8 @@ func _start_day() -> void:
 	if flow != _flow_id:
 		return
 	game_over_label.hide()
-	var d: Dictionary = GameData.DAYS[day - 1]
+	var d: Dictionary = GameData.overtime_day(_shift()) if overtime else GameData.DAYS[day - 1]
+	_cur_day = d
 	quota_height = d.height
 	max_pieces = d.pieces
 	quota_marker.set_quota(quota_height)
@@ -327,21 +334,32 @@ func _end_day(passed: bool, reason := "") -> void:
 		await screen_fx.cover()
 		if flow != _flow_id:
 			return
-		_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nLOST: %d PIECES\n\nclick to start over" % [
-			day, tower_top, quota_height, failed_attempts
-		])
+		if overtime:
+			var survived := _shift() - 1   # กะที่ผ่านมาแล้ว (กะที่ตกไม่นับ)
+			var is_record := survived > Settings.best_overtime
+			if is_record:
+				Settings.best_overtime = survived
+				Settings.save_all()
+			_show_screen("YOU'RE FIRED!\nSHIFTS SURVIVED: %d\n%s\nTOTAL EARNED: $%d\n\nclick to return to title" % [
+				survived, "NEW RECORD!" if is_record and survived > 0 else "BEST: %d" % Settings.best_overtime, money
+			])
+		else:
+			_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nLOST: %d PIECES\n\nclick to start over" % [
+				day, tower_top, quota_height, failed_attempts
+			])
 		state = State.FIRED
 		screen_fx.uncover()
 		return
 
 	sfx.play("pass")
-	await dialogue.say(_lines(Dialogue.DAY_PASS[day]))
+	var pass_lines: Array = Dialogue.OVERTIME_PASS.pick_random() if overtime else Dialogue.DAY_PASS[day]
+	await dialogue.say(_lines(pass_lines))
 	if flow != _flow_id:
 		return
 	await _show_review()
 	if flow != _flow_id:
 		return
-	if day >= GameData.DAYS.size():
+	if not overtime and day >= GameData.DAYS.size():
 		await dialogue.say(_lines(Dialogue.ENDING))
 		if flow != _flow_id:
 			return
@@ -364,10 +382,12 @@ func _show_review() -> void:
 	var info: Dictionary = GameData.GRADES[grade]
 	var wage := GameData.wage_for(day, grade, spare)
 	money += wage
-	var had_record: bool = Settings.best_grades[day - 1] != -1
-	var new_best := Settings.record_grade(day, grade) and had_record
+	var new_best := false
+	if not overtime:   # OVERTIME ไม่จดเกรดรายวัน (ใช้สถิติจำนวนกะแทน)
+		var had_record: bool = Settings.best_grades[day - 1] != -1
+		new_best = Settings.record_grade(day, grade) and had_record
 	await review.show_review({
-		"title": "DAY %d COMPLETE" % day,
+		"title": ("SHIFT %d COMPLETE" % _shift()) if overtime else ("DAY %d COMPLETE" % day),
 		"grade": info.id,
 		"color": info.color,
 		"new_best": new_best,
@@ -417,7 +437,12 @@ func _show_title() -> void:
 	tower_top = 0.0
 	score_label.hide()
 	var subtitle := "\n(night shift)" if Settings.night_shift else ""
-	_show_screen("STACK CHAOS!%s\n\nclick to start%s" % [subtitle, _best_grades_text()])
+	var extra := ""
+	if Settings.night_shift:   # OVERTIME ปลดล็อกแล้ว
+		extra = "\nright click: OVERTIME"
+		if Settings.best_overtime > 0:
+			extra += " (best %d)" % Settings.best_overtime
+	_show_screen("STACK CHAOS!%s\n\nclick to start%s%s" % [subtitle, extra, _best_grades_text()])
 
 
 # เกรดดีสุดของแต่ละวันบนหน้า title (ยังไม่เคยผ่านเลย = ไม่โชว์)
@@ -456,12 +481,33 @@ func _debug_day(args: PackedStringArray) -> String:
 	screen_fx.clear(0.01)   # เผื่อกำลังอยู่ในฉากจบ (จอมืด + ตา)
 	sfx.set_loop("ambient", true, -10.0)
 	_reset_time()
+	overtime = false
 	day = n
 	score = 0
 	money = 0
 	items.reset_run()
 	_start_day()
 	return "Starting day %d" % n
+
+
+# /overtime [N] — เริ่มโหมด OVERTIME ที่กะ N ทันที (ไม่ต้องปลดล็อก)
+func _debug_overtime(args: PackedStringArray) -> String:
+	var n := args[0].to_int() if not args.is_empty() and args[0].is_valid_int() else 1
+	n = maxi(n, 1)
+	_flow_id += 1
+	pause_menu.set_paused(false)
+	dialogue.abort()
+	review.abort()
+	screen_fx.clear(0.01)
+	sfx.set_loop("ambient", true, -10.0)
+	_reset_time()
+	overtime = true
+	day = GameData.DAYS.size() + n
+	score = 0
+	money = 0
+	items.reset_run()
+	_start_day()
+	return "Starting overtime shift %d" % n
 
 
 # /give <item|all> — ใส่ item เข้าคลัง (เต็ม MAX_SLOTS แล้วหยุด)
@@ -658,7 +704,7 @@ func recalc_tower_top() -> void:
 # ---------- boss คอมเมนต์ระหว่างวัน ----------
 
 func _is_tutorial() -> bool:
-	return GameData.DAYS[day - 1].get("tutorial", false)
+	return _cur_day.get("tutorial", false)
 
 
 # เช็คกองล้ม / ใกล้ถึงโควต้า หลังชิ้นล่าสุดนิ่ง
@@ -704,6 +750,7 @@ func _comment(key: String, force := false) -> void:
 func _lines(lines: Array, extra := {}) -> Array:
 	var vars := {
 		"day": day,
+		"shift": _shift(),
 		"days": GameData.DAYS.size(),
 		"quota": "%.1f" % quota_height,
 		"pieces": max_pieces,
@@ -716,11 +763,20 @@ func _lines(lines: Array, extra := {}) -> Array:
 
 
 # บทพูดต้นวัน: DAY_INTRO + คำอธิบายตัวปรับของวัน + ขยะพิเศษที่เริ่มมีวันนี้
+# เลขกะของโหมด OVERTIME (1, 2, 3...) / โหมดปกติคืนเลขวัน
+func _shift() -> int:
+	return day - GameData.DAYS.size() if overtime else day
+
+
 func _intro_lines() -> Array:
-	var lines: Array = Dialogue.DAY_INTRO[day].duplicate()
-	if day == 1 and Settings.night_shift:
-		lines[0] = Dialogue.NIGHT_FIRST_LINE
-	for m in GameData.DAYS[day - 1].get("modifiers", []):
+	var lines: Array
+	if overtime:
+		lines = Dialogue.OVERTIME_FIRST.duplicate() if _shift() == 1 else Dialogue.OVERTIME_INTRO.pick_random().duplicate()
+	else:
+		lines = Dialogue.DAY_INTRO[day].duplicate()
+		if day == 1 and Settings.night_shift:
+			lines[0] = Dialogue.NIGHT_FIRST_LINE
+	for m in _cur_day.get("modifiers", []):
 		lines.append_array(Dialogue.MODIFIER_INTRO.get(m, []))
 	for kind in GameData.KIND_FIRST_DAY:
 		if GameData.KIND_FIRST_DAY[kind] == day:
@@ -760,8 +816,9 @@ func _refresh_items() -> void:
 
 
 func update_ui() -> void:
-	score_label.text = "DAY: %d/%d\nTRASH: %d\nHEIGHT: %.1f / %.1f m\nFAILS: %d/%d\nPIECES: %d/%d" % [
-		day, GameData.DAYS.size(), score, tower_top, quota_height,
+	var day_text := "SHIFT: %d" % _shift() if overtime else "DAY: %d/%d" % [day, GameData.DAYS.size()]
+	score_label.text = "%s\nTRASH: %d\nHEIGHT: %.1f / %.1f m\nFAILS: %d/%d\nPIECES: %d/%d" % [
+		day_text, score, tower_top, quota_height,
 		failed_attempts, GameData.MAX_FAILS, pieces_used, max_pieces
 	]
 	var today := modifiers.label_text()

@@ -225,6 +225,13 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 `user://settings.cfg`) โชว์บนหน้า title (`BEST GRADES`) / คำพูด boss ตามเกรด = `Dialogue.GRADE_LINES` / จบเกมโชว์ `TOTAL EARNED`
 **ทดสอบด้วยสคริปต์แล้วอย่าลืมคืน `settings.cfg`** (probe ที่เล่นจนผ่านวันจะเขียนเกรดลงไฟล์จริงของผู้เล่น)
 
+**โหมด OVERTIME (branch test):** ปลดล็อกหลังจบ 5 วัน (`Settings.night_shift`) / หน้า title คลิกขวา = เริ่ม (`_start_run(true)`; เมนูปุ่มจริงมาทีหลังใน A4) /
+`main.overtime = true`, `day = DAYS.size() + เลขกะ` (นับต่อจากวันที่ 5 ให้ `kinds_for_day()` ครบทุกชนิด) / `_shift()` = เลขกะ /
+ข้อมูลกะมาจาก `GameData.overtime_day(n)` (โควต้า +`OVERTIME_HEIGHT_STEP` ต่อกะ, ชิ้น +`OVERTIME_PIECE_STEP`, สุ่มตัวปรับ 1 อย่าง (กะ 4+ = 2 อย่าง) จาก `OVERTIME_MODIFIERS`)
+เก็บไว้ที่ `main._cur_day` (**อย่าเรียก `overtime_day()` ซ้ำในวันเดียวกัน** ตัวปรับสุ่มใหม่ทุกครั้ง) / บทพูด `Dialogue.OVERTIME_FIRST/_INTRO/_PASS` (ตัวแปรใหม่ `{shift}`) /
+ไม่มีฉากจบ ผ่านกะ = `day += 1` ต่อไปเรื่อยๆ / โดนไล่ออก = จบรอบ โชว์ `SHIFTS SURVIVED` + `Settings.best_overtime` (`NEW RECORD!`) / HUD เขียน `SHIFT: n`
+dev console: **`/overtime [N]`** เริ่มที่กะ N ทันที (ไม่ต้องปลดล็อก)
+
 **boss UI:** `scripts/dialogue_box.gd` (`DialogueBox`, CanvasLayer) — `say(lines)` โหมดบล็อก (คลิกเพื่อข้ามพิมพ์/ไปต่อ),
 `comment(text)` โหมดไม่บล็อก, signal `blip` ไว้ผูกเสียงใน Phase 6 / สร้าง UI ด้วยโค้ดทั้งหมด
 
