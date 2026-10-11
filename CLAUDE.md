@@ -61,7 +61,7 @@
 `Textures/colormap.png` ของแพ็กตัวเอง ที่ .glb อ้างถึง — **อย่าย้ายโมเดลข้ามโฟลเดอร์** สีจะเพี้ยน) / เครดิต `assets/models/CREDITS.md`
 รถ — `assets/cars/*.glb` (ชุด Cars Bundle ที่ผู้พัฒนานำเข้ามา: `car_a`, `car_b`, `police`, `sports_a`,
 `sports_b`, `suv`, `taxi` / ไฟล์ต้นฉบับ `assets/Cars Bundle-glb.zip` เก็บไว้ ห้ามลบ) ดู `scripts/car_models.gd`
-> **เครดิต:** ในไฟล์ .glb ไม่ระบุผู้สร้าง/ไลเซนส์ (generator = obj2gltf) ให้ผู้พัฒนาตรวจที่มาของ bundle แล้วใส่เครดิตใน README (Phase 7)
+> **เครดิต:** Cars Bundle โดย **Quaternius** (CC0) จาก https://poly.pizza/bundle/Cars-Bundle-FE5IWe6OMk — ใส่ใน README และ `assets/models/CREDITS.md` แล้ว
 
 ---
 
