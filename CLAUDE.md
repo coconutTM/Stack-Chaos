@@ -218,6 +218,13 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
   `consume_insurance()` ถูกเรียกในลูปหลุดขอบก่อนนับ `failed_attempts` (ชิ้นยังนับเป็นที่ใช้ไปแล้ว)
 - คอมเมนต์ของ boss ตอนนี้อยู่ด้านบนจอ (เริ่มหลัง HUD) ส่วนบทพูดบล็อกอยู่ด้านล่าง เพื่อไม่บังแถบ item
 
+**สรุปผลงานท้ายวัน (branch test):** ผ่านวัน → boss พูด `DAY_PASS` → `main._show_review()` → `ReviewScreen` (`scripts/review_screen.gd`, CanvasLayer 12) →
+เกรด S/A/B/C จาก `GameData.grade_for(failed_attempts, spare)` (spare = `max_pieces - pieces_used`, เกณฑ์อยู่ใน `GameData.GRADES`) + ค่าแรง `GameData.wage_for()` บวกเข้า
+`main.money` (รีเซ็ตใน `_start_run()` / `/day`) / แถวผลโผล่ทีละแถว คลิก = ข้ามอนิเมชัน → คลิกอีกที = ปิด (`await review.show_review(data)`,
+`review.abort()` ใน `_debug_day` เพื่อตัด coroutine ค้าง) / `Settings.record_grade(day, grade)` จดเกรดดีสุดของแต่ละวัน (`Settings.best_grades` ใน
+`user://settings.cfg`) โชว์บนหน้า title (`BEST GRADES`) / คำพูด boss ตามเกรด = `Dialogue.GRADE_LINES` / จบเกมโชว์ `TOTAL EARNED`
+**ทดสอบด้วยสคริปต์แล้วอย่าลืมคืน `settings.cfg`** (probe ที่เล่นจนผ่านวันจะเขียนเกรดลงไฟล์จริงของผู้เล่น)
+
 **boss UI:** `scripts/dialogue_box.gd` (`DialogueBox`, CanvasLayer) — `say(lines)` โหมดบล็อก (คลิกเพื่อข้ามพิมพ์/ไปต่อ),
 `comment(text)` โหมดไม่บล็อก, signal `blip` ไว้ผูกเสียงใน Phase 6 / สร้าง UI ด้วยโค้ดทั้งหมด
 

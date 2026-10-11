@@ -32,6 +32,33 @@ const MODIFIERS := {
 	"shake": {"label": "QUAKE", "interval": Vector2(8.0, 14.0), "warn": 1.5, "duration": 2.0, "accel": 3.5},
 }
 
+# เกรดท้ายวัน (เฉพาะวันที่ผ่าน) ตัดสินจากชิ้นที่เสีย (fails) และชิ้นที่เหลือไม่ได้ใช้ (spare = pieces - ชิ้นที่ใช้ไป)
+# เรียงจากดีสุด ตัวแรกที่เข้าเงื่อนไขชนะ (ตัวสุดท้ายต้องรับทุกกรณี) / bonus = โบนัสเงินของเกรดนั้น
+const GRADES := [
+	{"id": "S", "max_fails": 0, "min_spare": 3, "bonus": 150, "color": Color(1.0, 0.85, 0.2)},
+	{"id": "A", "max_fails": 1, "min_spare": 1, "bonus": 75, "color": Color(0.4, 1.0, 0.45)},
+	{"id": "B", "max_fails": 2, "min_spare": 1, "bonus": 25, "color": Color(0.55, 0.75, 1.0)},
+	{"id": "C", "max_fails": 99, "min_spare": 0, "bonus": 0, "color": Color(0.75, 0.75, 0.75)},
+]
+const WAGE_BASE := 100        # ค่าแรงวันที่ 1
+const WAGE_PER_DAY := 25      # ค่าแรงเพิ่มต่อวัน
+const WAGE_PER_SPARE := 20    # เงินพิเศษต่อชิ้นที่เหลือ
+
+
+# คืน index ใน GRADES (0 = ดีสุด)
+static func grade_for(fails: int, spare: int) -> int:
+	for i in GRADES.size():
+		var g: Dictionary = GRADES[i]
+		if fails <= int(g.max_fails) and spare >= int(g.min_spare):
+			return i
+	return GRADES.size() - 1
+
+
+# เงินเดือนของวันนั้น = ค่าแรงตามวัน + ชิ้นที่เหลือ + โบนัสเกรด
+static func wage_for(day: int, grade: int, spare: int) -> int:
+	return WAGE_BASE + WAGE_PER_DAY * (day - 1) + WAGE_PER_SPARE * maxi(spare, 0) + int(GRADES[grade].bonus)
+
+
 # ขยะพิเศษ: วันแรกที่เริ่มมีในถุง (ชนิดที่ไม่ได้ระบุ = มีตั้งแต่วันที่ 1)
 const KIND_FIRST_DAY := {
 	Block.Kind.OIL_BARREL: 2,

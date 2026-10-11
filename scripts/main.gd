@@ -24,6 +24,7 @@ var quota_marker: QuotaMarker
 var dialogue: DialogueBox
 var item_bar: ItemBar
 var height_meter: HeightMeter
+var review: ReviewScreen
 var look: Ps1Look
 var modifiers: DayModifiers
 var screen_fx: ScreenFx
@@ -41,6 +42,7 @@ var day := 1
 var quota_height := 0.0
 var max_pieces := 0
 var score := 0              # ขยะที่วางสำเร็จตลอดการเล่นรอบนี้ (ข้ามวัน)
+var money := 0              # เงินเดือนสะสมของรอบนี้ (จากหน้าสรุปผลงานท้ายวัน)
 var failed_attempts := 0    # หลุดกองในวันนี้
 var pieces_used := 0        # ชิ้นที่ spawn ในวันนี้
 var tower_top := 0.0
@@ -83,6 +85,10 @@ func _ready() -> void:
 	add_child(quota_marker)
 	dialogue = DialogueBox.new()
 	add_child(dialogue)
+	review = ReviewScreen.new()
+	add_child(review)
+	review.tick.connect(func() -> void: sfx.play("ui_click", -6.0))
+	review.stamp.connect(func() -> void: sfx.play("item_get"))
 	items = ItemSystem.new(self)
 	item_bar = ItemBar.new()
 	add_child(item_bar)
@@ -235,6 +241,7 @@ func _on_camera_tapped() -> void:
 func _start_run() -> void:
 	day = 1
 	score = 0
+	money = 0
 	items.reset_run()
 	_start_day()
 
@@ -331,6 +338,9 @@ func _end_day(passed: bool, reason := "") -> void:
 	await dialogue.say(_lines(Dialogue.DAY_PASS[day]))
 	if flow != _flow_id:
 		return
+	await _show_review()
+	if flow != _flow_id:
+		return
 	if day >= GameData.DAYS.size():
 		await dialogue.say(_lines(Dialogue.ENDING))
 		if flow != _flow_id:
@@ -340,11 +350,35 @@ func _end_day(passed: bool, reason := "") -> void:
 			return
 		Settings.night_shift = true
 		Settings.save_all()
-		_show_screen("SHIFT COMPLETE\nTRASH STACKED: %d\n\nclick to return to title" % score)
+		_show_screen("SHIFT COMPLETE\nTRASH STACKED: %d\nTOTAL EARNED: $%d\n\nclick to return to title" % [score, money])
 		state = State.ENDING
 	else:
 		day += 1
 		_start_day()
+
+
+# หน้าสรุปผลงานท้ายวัน: เกรดจากชิ้นที่เสีย/ที่เหลือ → ค่าแรง (บวกเข้า money) / จดเกรดดีสุดของวัน
+func _show_review() -> void:
+	var spare := maxi(max_pieces - pieces_used, 0)
+	var grade := GameData.grade_for(failed_attempts, spare)
+	var info: Dictionary = GameData.GRADES[grade]
+	var wage := GameData.wage_for(day, grade, spare)
+	money += wage
+	var had_record: bool = Settings.best_grades[day - 1] != -1
+	var new_best := Settings.record_grade(day, grade) and had_record
+	await review.show_review({
+		"title": "DAY %d COMPLETE" % day,
+		"grade": info.id,
+		"color": info.color,
+		"new_best": new_best,
+		"rows": [
+			["PIECES LEFT", str(spare)],
+			["PIECES LOST", str(failed_attempts)],
+			["WAGE", "$%d" % wage],
+			["TOTAL", "$%d" % money],
+		],
+		"boss": Dialogue.GRADE_LINES[info.id].pick_random(),
+	})
 
 
 # ฉากจบ: จอมืดสนิท มีแต่ตาของผู้เล่นเรืองขึ้นกลางความมืด (boss หายไปแล้ว)
@@ -383,7 +417,17 @@ func _show_title() -> void:
 	tower_top = 0.0
 	score_label.hide()
 	var subtitle := "\n(night shift)" if Settings.night_shift else ""
-	_show_screen("STACK CHAOS!%s\n\nclick to start" % subtitle)
+	_show_screen("STACK CHAOS!%s\n\nclick to start%s" % [subtitle, _best_grades_text()])
+
+
+# เกรดดีสุดของแต่ละวันบนหน้า title (ยังไม่เคยผ่านเลย = ไม่โชว์)
+func _best_grades_text() -> String:
+	var parts: Array[String] = []
+	var any := false
+	for g in Settings.best_grades:
+		parts.append(String(GameData.GRADES[g].id) if g >= 0 else "-")
+		any = any or g >= 0
+	return "\n\nBEST GRADES\n%s" % "  ".join(parts) if any else ""
 
 
 func _show_screen(text: String) -> void:
@@ -408,11 +452,13 @@ func _debug_day(args: PackedStringArray) -> String:
 	_flow_id += 1
 	pause_menu.set_paused(false)
 	dialogue.abort()
+	review.abort()
 	screen_fx.clear(0.01)   # เผื่อกำลังอยู่ในฉากจบ (จอมืด + ตา)
 	sfx.set_loop("ambient", true, -10.0)
 	_reset_time()
 	day = n
 	score = 0
+	money = 0
 	items.reset_run()
 	_start_day()
 	return "Starting day %d" % n

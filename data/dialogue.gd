@@ -79,6 +79,14 @@ const DAY_PASS := {
 	5: ["{height} meters.", "...Well done."],
 }
 
+# คำพูดสั้นๆ ของ boss บนหน้าสรุปผลงานท้ายวัน ตามเกรด (สุ่มหนึ่งบรรทัด)
+const GRADE_LINES := {
+	"S": ["Flawless. I almost smiled.", "Not a single piece wasted. Remarkable.", "Perfect. Don't let it go to your head."],
+	"A": ["Good work.", "Solid. Almost perfect.", "I've seen worse. Much worse."],
+	"B": ["Acceptable. Barely.", "It stood. That's something.", "You can do better. I know you can."],
+	"C": ["That was too close.", "You used every last piece. Careless.", "It counts. Don't make it a habit."],
+}
+
 # ท้ายวัน — โดนไล่ออก (แยกสาเหตุ)
 const FIRED_FAILS := [
 	"You lost {fails} pieces.",
