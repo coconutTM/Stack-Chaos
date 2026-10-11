@@ -37,14 +37,17 @@
 | Setting | ค่า | ความหมาย |
 | --- | --- | --- |
 | Renderer | `gl_compatibility` | **เพราะต้องรันบนเว็บได้** → **ไม่มี** SDFGI / Volumetric Fog / SSR / ห้ามใช้ feature ที่มีแต่ใน Forward+ |
-| Viewport | ขนาดอ้างอิง `426×240`, หน้าต่างเริ่มต้น `852×480` (×2), stretch `canvas_items` / `expand` / scale `integer` | UI ทุกชิ้นวางด้วยพิกัด 426×240 (**ห้ามเปลี่ยน `viewport_width/height`** ไม่งั้นตำแหน่ง UI เพี้ยนหมด) แล้วถูกขยายเป็นจำนวนเต็มเท่าแบบคม ส่วน 3D เรนเดอร์ที่ความละเอียดจริงของหน้าต่าง |
+| Viewport | ขนาดอ้างอิง `426×240`, หน้าต่างเริ่มต้น `1280×720` (×3), stretch `canvas_items` / `expand` / scale `integer` | UI ทุกชิ้นวางด้วยพิกัด 426×240 (**ห้ามเปลี่ยน `viewport_width/height`** ไม่งั้นตำแหน่ง UI เพี้ยนหมด) แล้วถูกขยายเป็นจำนวนเต็มเท่าแบบคม ส่วน 3D เรนเดอร์ที่ความละเอียดจริงของหน้าต่าง |
 | `default_texture_filter` | `0` (nearest) | texture ใหม่ต้องไม่ถูก filter / texture เล็ก 32–64 px |
 | 3D physics engine | **Jolt Physics** | เลือกเพราะทำให้การซ้อนของนิ่งกว่า Godot Physics เดิม |
 
 **ความละเอียด:** เปลี่ยนขนาดหน้าต่างเริ่มต้นที่ `window/size/window_width_override` / `window_height_override` / ลาย dither ของ `PostFx`
 ขยายตาม (`pixel_scale` = ความสูงจอ ÷ 240 ปัดลง) ให้หยาบเท่าเดิม / vertex snapping (`snap_grid`) เป็นพิกัด NDC ไม่ขึ้นกับความละเอียด
 / **ย้อนกลับเป็นพิกเซลต่ำแบบเดิม:** `stretch/mode = "viewport"` + ลบ override 2 ตัว / ภาพ 3D ใหญ่ขึ้น 4 เท่า → **เช็ค FPS บนเว็บจริง (F3)**
-/ Hyprland (tiling) ไม่สนขนาดหน้าต่างที่เกมขอ → ทดสอบขนาดจริงด้วย `xvfb-run -s "-screen 0 852x480x24" godot --display-driver x11 ...`
+/ Hyprland (tiling) ไม่สนขนาดหน้าต่างที่เกมขอ → ทดสอบขนาดจริงด้วย `xvfb-run -s "-screen 0 1280x720x24" godot --display-driver x11 ...`
+/ **ขนาด embed บน itch.io:** `1280×720` (×3) หรือ `960×540` (×2) + เปิดปุ่ม Fullscreen / FPS บนเว็บไม่พอ → ลดเป็น `852×480`
+/ **texture `colormap.png` ของ Kenney ต้องเป็น Lossless, ไม่มี mipmap, `detect_3d/compress_to=0`** — ถ้าปล่อยให้ Godot แปลงเป็น VRAM (S3TC)
+สี palette จะเพี้ยน และเว็บบนมือถือไม่มี texture (preset Web ใส่แค่ฟอร์แมตเดสก์ท็อป)
 
 **ข้อจำกัดเรื่อง web export** (มี `export_presets.cfg` preset "Web" แล้ว — single-threaded, export ไป `build/web/`, โฟลเดอร์ `build/` ถูก gitignore):
 - ต้องเป็น **single-threaded** (ปิด Thread Support) เพื่อลง itch.io ได้ง่าย
