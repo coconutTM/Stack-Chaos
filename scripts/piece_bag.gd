@@ -20,6 +20,20 @@ func next() -> int:
 	return _last
 
 
+# หยิบชิ้นถัดไปที่ไม่อยู่ใน excluded (ชิ้นที่ข้ามยังอยู่ในถุงตามลำดับเดิม) / ถุงไม่มีชนิดที่ใช้ได้เลย = หยิบตามปกติ
+func next_excluding(excluded: Array) -> int:
+	if _kinds.all(func(k: int) -> bool: return excluded.has(k)):
+		return next()
+	while true:
+		for i in range(_bag.size() - 1, -1, -1):
+			if not excluded.has(_bag[i]):
+				_last = _bag[i]
+				_bag.remove_at(i)
+				return _last
+		_refill()
+	return next()
+
+
 # ดูล่วงหน้า n ชิ้นถัดไป (ตามลำดับที่จะหยิบ) โดยไม่หยิบออก / ถุงสั้นไปก็เติมชุดใหม่ต่อท้ายคิว
 func peek(n: int) -> Array[int]:
 	while _bag.size() < n:

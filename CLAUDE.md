@@ -157,7 +157,7 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 ถูก `queue_free()` แล้ว ห้ามแตะ property ของมัน (เช่น `current.settled`) ต่อในเฟรมเดียวกัน
 
 **สุ่มขยะ:** `scripts/piece_bag.gd` (`PieceBag`) — ถุงที่ใส่ทุก `Block.Kind` อย่างละชิ้น สลับแล้วหยิบ หมดค่อยเติม
-(ชิ้นแรกของถุงใหม่ไม่ซ้ำชิ้นสุดท้ายของถุงเก่า)
+(ชิ้นแรกของถุงใหม่ไม่ซ้ำชิ้นสุดท้ายของถุงเก่า) / **ชิ้นที่จะเป็นฐาน** (ยังไม่มีชิ้นนิ่งบนแท่น) ใช้ `next_excluding(GameData.BAD_BASE_KINDS)` ข้ามถ้วยทอง ถังน้ำ ท่อ (ชิ้นที่ข้ามยังอยู่ในถุง) — `main._make_current()`
 
 **โมเดล .glb (`scripts/model_library.gd`, `ModelLibrary.mesh(scene)`):** รวมชิ้นส่วนทั้งไฟล์เป็น `ArrayMesh` เดียว
 **รวม surface ที่ material เดียวกัน** (ลด draw call) + แปลงสีเป็น `Psx.material` (ชื่อ material มี "lights" พหูพจน์ = เรืองแสง — `metalLight` ของ Kenney ไม่นับ /

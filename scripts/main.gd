@@ -664,7 +664,9 @@ func spawn_block() -> void:
 
 # สร้างชิ้นที่ถือจากถุง / ตั้งตำแหน่งก่อน add_child ไม่ให้ชิ้นเทเลพอร์ตจาก (0,0,0) ขึ้นมา (blocks_root อยู่ที่จุดกำเนิด)
 func _make_current(pos: Vector3) -> void:
-	current = Block.spawn(bag.next())
+	# ยังไม่มีกอง (ชิ้นแรกของวัน หรือฐานหลุดไปแล้ว) = ชิ้นนี้จะเป็นฐาน → ข้ามชนิดที่เป็นฐานไม่ได้ (ถ้วยทอง ถังน้ำ ท่อ)
+	var kind := bag.next() if _has_settled_piece(null) else bag.next_excluding(GameData.BAD_BASE_KINDS)
+	current = Block.spawn(kind)
 	current.position = pos
 	blocks_root.add_child(current)
 	current.hit.connect(_on_hit.bind(current))

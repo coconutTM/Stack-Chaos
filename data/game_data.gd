@@ -85,6 +85,10 @@ static func overtime_day(n: int) -> Dictionary:
 	}
 
 
+# ชนิดที่ห้ามเป็นฐานกอง (ชิ้นแรกตอนยังไม่มีกอง): เล็ก/กลม ชิ้นต่อไปไถลตกหมดจนวันนั้นแทบเล่นไม่ได้
+const BAD_BASE_KINDS := [Block.Kind.GOLD_TROPHY, Block.Kind.BUCKET, Block.Kind.CYLINDER]
+
+
 # ขยะพิเศษ: วันแรกที่เริ่มมีในถุง (ชนิดที่ไม่ได้ระบุ = มีตั้งแต่วันที่ 1)
 const KIND_FIRST_DAY := {
 	Block.Kind.OIL_BARREL: 2,
