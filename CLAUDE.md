@@ -228,6 +228,11 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 `user://settings.cfg`) โชว์บนหน้า title (`BEST GRADES` ใน `TitleMenu`) / คำพูด boss ตามเกรด = `Dialogue.GRADE_LINES` / จบเกมโชว์ `TOTAL EARNED`
 **ทดสอบด้วยสคริปต์แล้วอย่าลืมคืน `settings.cfg`** (probe ที่เล่นจนผ่านวันจะเขียนเกรดลงไฟล์จริงของผู้เล่น)
 
+**หน้า SETTINGS (branch test):** `SettingsPanel` (`scripts/settings_panel.gd`, CanvasLayer 16, `PROCESS_MODE_ALWAYS` ใช้ได้ตอน pause) เปิดจากปุ่ม SETTINGS ที่หน้า title และเมนู pause (main สร้างหลัง `PauseMenu` เพื่อให้ Esc ปิดหน้านี้ก่อน) /
+ค่าอยู่ใน `Settings`: `volume` (0-1 → `Settings.apply_audio()` ตั้ง bus 0 เป็น dB + mute แยกกันด้วยปุ่ม SND), `camera_sens` (0.5-2.0 คูณ `OrbitCamera.DRAG_SENS`),
+`retro_look` (false = ปิด `PostFx` (dither + ลดสี) ผ่านกลุ่ม `retro_post` → `set_enabled()` และปิด vertex snapping ผ่าน `Psx.set_snap()` = ตั้ง `snap_grid` ของทุก material ใน cache เป็น `Psx.SNAP_OFF`)
+บันทึกเมื่อกด BACK / Esc / ปิด / **material ใหม่ที่สร้างหลังปิด snap ก็ได้ค่าปิดด้วย** (`Psx.snap_enabled`) / ใช้เมื่อ FPS บนเว็บไม่พอ
+
 **เลือกรางวัล item (branch test):** หลังหน้าสรุปผลงาน ถ้าเกรด ≤ `GameData.REWARD_MAX_GRADE` (A หรือดีกว่า) และคลังยังไม่เต็ม และยังมีวันต่อไป →
 `ItemChoice` (`scripts/item_choice.gd`, CanvasLayer 12) โชว์การ์ด 3 ใบจาก `ItemData.roll_distinct(3)` (ไม่ซ้ำ ตามน้ำหนัก) `await item_choice.choose(ids, boss_line)` คืน id ที่เลือก
 (`""` = ถูกตัดโดย `abort()` ใน `/day` / `/overtime`) → `items.give(id)` / แจก item สุ่มตอนต้นวันถัดไปยังเกิดตามเดิม (`GIVE_PER_DAY`) / บท boss = `Dialogue.REWARD_LINES`

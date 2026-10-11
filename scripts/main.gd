@@ -33,6 +33,7 @@ var item_bar: ItemBar
 var height_meter: HeightMeter
 var review: ReviewScreen
 var title_menu: TitleMenu
+var settings_panel: SettingsPanel
 var item_choice: ItemChoice
 var look: Ps1Look
 var modifiers: DayModifiers
@@ -72,6 +73,8 @@ var _flow_id := 0            # เพิ่มทุกครั้งที่ 
 
 func _ready() -> void:
 	Settings.load_all()
+	Settings.apply_audio()
+	Psx.set_snap(Settings.retro_look)
 	GameTheme.apply(get_tree().root)
 	sfx = Sfx.new()
 	add_child(sfx)
@@ -108,6 +111,7 @@ func _ready() -> void:
 	title_menu.play_pressed.connect(_start_run)
 	title_menu.overtime_pressed.connect(_start_run.bind(true))
 	title_menu.clicked.connect(func() -> void: sfx.play("ui_click"))
+	title_menu.settings_pressed.connect(func() -> void: settings_panel.open())
 	review.tick.connect(func() -> void: sfx.play("ui_click", -6.0))
 	review.stamp.connect(func() -> void: sfx.play("item_get"))
 	items = ItemSystem.new(self)
@@ -128,7 +132,11 @@ func _ready() -> void:
 	pause_menu = PauseMenu.new()
 	pause_menu.can_pause = func() -> bool: return state == State.HOLDING or state == State.WAITING
 	pause_menu.quit_requested.connect(_go_title)
+	pause_menu.settings_requested.connect(func() -> void: settings_panel.open())
 	add_child(pause_menu)
+	settings_panel = SettingsPanel.new()   # เพิ่มหลัง PauseMenu → ได้รับ Esc ก่อน (ปิดหน้า SETTINGS ก่อนที่ Esc จะไปปิด pause)
+	add_child(settings_panel)
+	settings_panel.changed.connect(func() -> void: sfx.play("ui_click"))
 	add_child(FpsOverlay.new())
 	camera.tapped.connect(_on_camera_tapped)
 

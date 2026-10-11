@@ -67,7 +67,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _drag_dist > DRAG_THRESHOLD:
 			dragging = true
 		if dragging:
-			yaw -= event.relative.x * DRAG_SENS   # ลากขวา = ฉากหมุนตามเมาส์
+			yaw -= event.relative.x * DRAG_SENS * Settings.camera_sens   # ลากขวา = ฉากหมุนตามเมาส์
 
 
 func _update_transform() -> void:

@@ -7,10 +7,12 @@ extends CanvasLayer
 const BASE_HEIGHT := 240.0   # ความสูงอ้างอิงของเกม (project.godot viewport_height) ลาย dither ขยายตามความสูงจริงของจอ
 
 var _material: ShaderMaterial
+var _rect: ColorRect
 
 
 func _ready() -> void:
 	layer = 0
+	add_to_group("retro_post")   # หน้า SETTINGS สั่งเปิด/ปิดผ่านกลุ่มนี้ (set_enabled)
 	var rect := ColorRect.new()
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE   # ห้ามกินคลิกของเกม
 	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -18,9 +20,16 @@ func _ready() -> void:
 	m.shader = preload("res://shaders/psx_post.gdshader")
 	rect.material = m
 	add_child(rect)
+	_rect = rect
+	rect.visible = Settings.retro_look
 	_material = m
 	get_window().size_changed.connect(_update_scale)
 	_update_scale()
+
+
+# เปิด/ปิดโพสต์โปรเซสทั้งหน้าจอ (ปิด = ไม่ลดสี/ไม่มีลาย dither และประหยัดหนึ่ง pass เต็มจอ)
+func set_enabled(on: bool) -> void:
+	_rect.visible = on
 
 
 # canvas_items: 3D เรนเดอร์ที่ความละเอียดจริง → ให้ลาย dither หยาบเท่ากับตอน 426x240 (ปัดเป็นจำนวนเต็ม ลายไม่เบลอ)

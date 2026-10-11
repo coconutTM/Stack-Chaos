@@ -5,6 +5,7 @@ extends CanvasLayer
 # ใช้ get_tree().paused → ฟิสิกส์ / main.gd / เสียง หยุดหมด ส่วนเมนูนี้ทำงานต่อ (PROCESS_MODE_ALWAYS)
 
 signal quit_requested   # กด QUIT TO TITLE (main.gd พากลับหน้าแรก)
+signal settings_requested   # กด SETTINGS (main.gd เปิด SettingsPanel ทับเมนูนี้)
 
 var can_pause: Callable   # main ตั้งให้: คืน true เมื่อหยุดได้ (ระหว่างถือ/รอชิ้นนิ่งเท่านั้น)
 
@@ -52,6 +53,7 @@ func _ready() -> void:
 	title.add_theme_font_size_override("font_size", 16)
 	box.add_child(title)
 	box.add_child(_menu_button("RESUME", set_paused.bind(false)))
+	box.add_child(_menu_button("SETTINGS", func() -> void: settings_requested.emit()))
 	box.add_child(_menu_button("QUIT TO TITLE", _quit))
 	var hint := Label.new()
 	hint.text = "ESC to resume"

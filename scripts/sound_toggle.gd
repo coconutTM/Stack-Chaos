@@ -29,5 +29,5 @@ func _toggle() -> void:
 
 
 func _apply() -> void:
-	AudioServer.set_bus_mute(0, Settings.muted)
+	Settings.apply_audio()
 	_button.text = "SND OFF" if Settings.muted else "SND ON"

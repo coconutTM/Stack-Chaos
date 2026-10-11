@@ -6,6 +6,7 @@ extends CanvasLayer
 
 signal play_pressed
 signal overtime_pressed
+signal settings_pressed
 signal clicked            # กดปุ่มใดก็ตาม (ไว้ผูกเสียงคลิก)
 
 # บรรทัดในหน้า CREDITS (ภาษาอังกฤษ เพราะฟอนต์ไม่มีอักษรไทย) — เพิ่มชื่อทีมที่นี่ได้
@@ -61,12 +62,13 @@ func _ready() -> void:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override("separation", 6)
 	box.offset_left = 28.0
-	box.offset_top = 104.0
+	box.offset_top = 98.0
 	_root.add_child(box)
 	box.add_child(_button("PLAY", func() -> void: play_pressed.emit()))
 	_overtime_button = _button("OVERTIME", func() -> void: overtime_pressed.emit())
 	box.add_child(_overtime_button)
 	box.add_child(_button("HOW TO PLAY", _open_panel.bind("HOW TO PLAY", HOW_TO_LINES)))
+	box.add_child(_button("SETTINGS", func() -> void: settings_pressed.emit()))
 	box.add_child(_button("CREDITS", _open_panel.bind("CREDITS", CREDITS_LINES)))
 
 	_footer = _label("", 8, 222.0, 10.0)
