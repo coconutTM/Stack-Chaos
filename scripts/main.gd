@@ -298,6 +298,7 @@ func _start_day() -> void:
 	if flow != _flow_id:
 		return
 	game_over_label.hide()
+	title_menu.close()   # เผื่อเริ่มวันจาก /day หรือ /overtime ตอนอยู่หน้า title (ไม่ผ่านปุ่ม PLAY)
 	var d: Dictionary = GameData.overtime_day(_shift()) if overtime else GameData.DAYS[day - 1]
 	_cur_day = d
 	quota_height = d.height
