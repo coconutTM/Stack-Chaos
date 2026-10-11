@@ -134,7 +134,7 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 **ค่าที่จูนเรื่องความยาก/วัน/บท อยู่ในโฟลเดอร์ `data/`** (data-driven ไม่ต้องแตะ `main.gd`):
 - `data/game_data.gd` (`GameData`) — `DAYS` (โควต้าความสูง `height` + จำนวนชิ้น `pieces` + `tutorial`
   ต่อวัน), `MAX_FAILS`, `COLLAPSE_DROP`, `NEAR_QUOTA`, `COMMENT_COOLDOWN`
-  ความสูงเป็นพิกัดโลก (y) พื้นอยู่ที่ y ≈ `1.2` กองสูง 3 ม. จริง ≈ `4.2`
+  ความสูงเป็นพิกัดโลก (y) พื้นอยู่ที่ y ≈ `1.2` กองสูง 3 ม. จริง ≈ `4.2` / **ตัวเลขที่โชว์ผู้เล่นทุกที่ลบความสูงแท่นออกแล้ว** (`main._shown_height()` — HUD, หน้า FIRED, ป้าย QUOTA, แถบวัด, บทพูด `{quota}`/`{height}`) เช่น วันที่ 1 `height 4.0` โชว์ `2.8 m`
 - `data/dialogue.gd` (`Dialogue`) — บทพูดทั้งหมด (`DAY_INTRO`, `DAY_PASS`, `FIRED_FAILS`, `FIRED_PIECES`,
   `ENDING`, `COMMENTS`) ตัวแปรในบท: `{day} {days} {quota} {pieces} {height} {fails} {max_fails}`
 

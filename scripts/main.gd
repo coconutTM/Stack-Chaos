@@ -302,7 +302,7 @@ func _start_day() -> void:
 	_cur_day = d
 	quota_height = d.height
 	max_pieces = d.pieces
-	quota_marker.set_quota(quota_height)
+	quota_marker.set_quota(quota_height, _shown_height(quota_height))
 
 	for b in blocks_root.get_children():
 		b.queue_free()
@@ -385,7 +385,7 @@ func _end_day(passed: bool, reason := "") -> void:
 			])
 		else:
 			_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nLOST: %d PIECES\n\nclick to return to title" % [
-				day, tower_top, quota_height, failed_attempts
+				day, _shown_height(tower_top), _shown_height(quota_height), failed_attempts
 			])
 		state = State.FIRED
 		screen_fx.uncover()
@@ -802,9 +802,9 @@ func _lines(lines: Array, extra := {}) -> Array:
 		"day": day,
 		"shift": _shift(),
 		"days": GameData.DAYS.size(),
-		"quota": "%.1f" % quota_height,
+		"quota": "%.1f" % _shown_height(quota_height),
 		"pieces": max_pieces,
-		"height": "%.1f" % tower_top,
+		"height": "%.1f" % _shown_height(tower_top),
 		"fails": failed_attempts,
 		"max_fails": GameData.MAX_FAILS,
 	}
@@ -867,10 +867,15 @@ func _refresh_items() -> void:
 	item_bar.refresh(items.inventory, state == State.HOLDING, "  ".join(parts), next_text)
 
 
+# ความสูงที่โชว์ผู้เล่น = นับจากผิวแท่น (ค่าภายใน tower_top / quota_height เป็นพิกัดโลก แท่นอยู่ที่ y ≈ 1.2)
+func _shown_height(world_y: float) -> float:
+	return maxf(world_y - guide.pad_top, 0.0)
+
+
 func update_ui() -> void:
 	var day_text := "SHIFT: %d" % _shift() if overtime else "DAY: %d/%d" % [day, GameData.DAYS.size()]
 	score_label.text = "%s\nTRASH: %d\nHEIGHT: %.1f / %.1f m\nFAILS: %d/%d\nPIECES: %d/%d" % [
-		day_text, score, tower_top, quota_height,
+		day_text, score, _shown_height(tower_top), _shown_height(quota_height),
 		failed_attempts, GameData.MAX_FAILS, pieces_used, max_pieces
 	]
 	var today := modifiers.label_text()

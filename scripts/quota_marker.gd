@@ -2,7 +2,7 @@ class_name QuotaMarker
 extends Node3D
 
 # เส้นโควต้าในฉาก 3D: กรอบเรืองแสงรอบแท่นที่ความสูงโควต้า + ป้าย QUOTA
-# main.gd เรียก set_quota() ต้นวัน และ update_progress() ทุกเฟรม (ความสูงเป็นพิกัดโลก เหมือน HEIGHT บน HUD)
+# main.gd เรียก set_quota() ต้นวัน และ update_progress() ทุกเฟรม (height / tower_top เป็นพิกัดโลก / ป้ายโชว์ค่าที่นับจากผิวแท่นเหมือน HUD)
 
 const HALF := 4.5            # ครึ่งความกว้างกรอบ (เท่าครึ่งพื้นแท่น 9x9)
 const THICK := 0.07
@@ -48,11 +48,11 @@ func _ready() -> void:
 	visible = false
 
 
-# ต้นวัน: ตั้งความสูงโควต้า (พิกัดโลก)
-func set_quota(height: float) -> void:
+# ต้นวัน: ตั้งความสูงโควต้า (height = พิกัดโลก วางกรอบ / shown = ตัวเลขบนป้าย นับจากผิวแท่น)
+func set_quota(height: float, shown: float) -> void:
 	_quota = height
 	position.y = height
-	_label.text = "QUOTA %.1f m" % height
+	_label.text = "QUOTA %.1f m" % shown
 	update_progress(0.0)
 
 

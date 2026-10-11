@@ -67,7 +67,7 @@ func _draw_meter() -> void:
 	# ขีดโควต้า + ตัวเลข
 	var qy := roundf(_y_of(_quota))
 	_canvas.draw_rect(Rect2(BAR_X - 4.0, qy - 1.0, BAR_W + 8.0, 2.0), COL_QUOTA)
-	var text := "%.1f" % _quota
+	var text := "%.1f" % maxf(_quota - PAD_Y, 0.0)   # ตัวเลขนับจากผิวแท่น เหมือน HUD
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 	_canvas.draw_string_outline(font, Vector2(BAR_X - 7.0 - w, qy + 3.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, 4, Color.BLACK)
 	_canvas.draw_string(font, Vector2(BAR_X - 7.0 - w, qy + 3.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, COL_QUOTA)
