@@ -183,7 +183,9 @@ func _physics_process(delta: float) -> void:
 			last_settled = current
 			_reset_time()
 			score += 1
+			var prev_top := tower_top
 			recalc_tower_top()
+			_popup_progress(prev_top)
 			update_ui()
 			if tower_top >= quota_height:
 				_end_day(true)
@@ -614,6 +616,22 @@ func _is_tutorial() -> bool:
 
 
 # เช็คกองล้ม / ใกล้ถึงโควต้า หลังชิ้นล่าสุดนิ่ง
+# ข้อความเด้งเหนือชิ้นที่เพิ่งนิ่ง: ความสูงที่เพิ่ม / สถิติใหม่ / ใกล้ถึง / ถึงโควต้า (เรียกก่อน _comment_on_progress ที่อัปเดต best_height)
+func _popup_progress(prev_top: float) -> void:
+	var at := current.global_position + Vector3(0.0, 1.0, 0.0)
+	var reached := tower_top >= quota_height
+	var near_line := quota_height - GameData.NEAR_QUOTA
+	var gain := tower_top - maxf(prev_top, guide.pad_top)
+	if reached:
+		Effects.popup(self, at, "QUOTA!", QuotaMarker.GREEN)
+	elif tower_top >= near_line and prev_top < near_line:
+		Effects.popup(self, at, "ALMOST!", QuotaMarker.YELLOW)
+	elif best_height > 0.0 and tower_top > best_height + 0.05:
+		Effects.popup(self, at, "NEW BEST!", Color(1.0, 1.0, 1.0))
+	elif gain >= 0.2:
+		Effects.popup(self, at, "+%.1f m" % gain, Color(0.92, 0.9, 0.78))
+
+
 func _comment_on_progress() -> void:
 	if tower_top > best_height:
 		best_height = tower_top

@@ -184,7 +184,7 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 - **ทีวีเปราะ (`Block.fragile`)**: เสียชิ้นนี้แบบไหนก็ได้ (หลุดขอบ / ตกพื้น / กองล้ม) → `_register_fail(key, true)` →
   `_end_day(false, "fragile")` โดนไล่ออกทันที (Insurance ช่วยได้) / ขึ้น `FRAGILE!` ในแถบสถานะตอนถืออยู่
 - **สั่นจอ/เอฟเฟกต์**: `OrbitCamera.shake()/rumble()` (trauma → `h_offset`/`v_offset`), `ScreenFx.flash()` (แฟลชแดงตอนเสียชิ้น),
-  `Effects.puff()` (ฝุ่น) / ชิ้นชนแรง = สัญญาณ `Block.hit(impact)` เมื่อ `ความเร็วก่อนชน x √มวล ≥ HIT_MIN` (หนักพอ ≥ `HARD_IMPACT` ถึงสั่นจอ/ฝุ่น)
+  `Effects.puff()` (ฝุ่น), `Effects.popup()` (ข้อความ Label3D ลอยขึ้นแล้วจาง — main `_popup_progress()` เด้ง `+x m` / `NEW BEST!` / `ALMOST!` / `QUOTA!` เหนือชิ้นที่เพิ่งนิ่ง) / ชิ้นชนแรง = สัญญาณ `Block.hit(impact)` เมื่อ `ความเร็วก่อนชน x √มวล ≥ HIT_MIN` (หนักพอ ≥ `HARD_IMPACT` ถึงสั่นจอ/ฝุ่น)
   (ลังไม้ ≈ 7 ไม่สั่น, ตู้เย็น ≈ 13, ลังเหล็ก ≈ 17)
 
 **เสียง / ฟอนต์ / ฉากจบ (Phase 6):**
