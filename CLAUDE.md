@@ -311,8 +311,10 @@ promptly instead of waiting out `MAX_WAIT`.
   `update_crane(yaw, held, hold_y, delta)` ทุกเฟรม
 - `scripts/drop_guide.gd` (`DropGuide`) — ray ลงใต้ชิ้นที่ถือ วาดวงเงา + เส้นดิ่ง (แดง = ไม่มีอะไรรองรับ
   จะตกลงลานนอกแท่น `pad_top`) / main ตั้ง `guide.target` ทุกเฟรม
+- `scripts/quota_marker.gd` (`QuotaMarker`) — กรอบเรืองแสงรอบแท่นที่ความสูงโควต้า + ป้าย `QUOTA x m` (Label3D ฟอนต์ pixel อยู่ขอบฝั่งตรงข้ามกล้อง)
+  / เหลือง → กะพริบเมื่อห่างโควต้า ≤ `NEAR_QUOTA` → เขียวเมื่อถึง / main เรียก `set_quota()` ต้นวัน และ `update_progress(tower_top)` ทุกเฟรม (โชว์เฉพาะระหว่างวัน)
 
-main.gd สร้าง `Crane` และ `DropGuide` เองใน `_ready()` (ไม่ได้อยู่ใน `main.tscn`)
+main.gd สร้าง `Crane`, `DropGuide`, `QuotaMarker` เองใน `_ready()` (ไม่ได้อยู่ใน `main.tscn`)
 
 ### Scenes
 

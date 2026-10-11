@@ -20,6 +20,7 @@ const RESTART_DELAY := 0.3  # หน่วงหลังขึ้นหน้�
 
 var crane: Crane
 var guide: DropGuide
+var quota_marker: QuotaMarker
 var dialogue: DialogueBox
 var item_bar: ItemBar
 var look: Ps1Look
@@ -77,6 +78,8 @@ func _ready() -> void:
 	guide = DropGuide.new()
 	guide.pad_top = ground.position.y + ground.size.y * 0.5
 	add_child(guide)
+	quota_marker = QuotaMarker.new()
+	add_child(quota_marker)
 	dialogue = DialogueBox.new()
 	add_child(dialogue)
 	items = ItemSystem.new(self)
@@ -125,6 +128,9 @@ func _process(delta: float) -> void:
 	guide.target = current if holding else null
 	# มีกองแล้ว (มีชิ้นนิ่ง) → วงนำทางจะเตือนสีแดงถ้าจุดตกคือพื้น
 	guide.ground_is_fail = holding and _has_settled_piece(current)
+	# เส้นโควต้าโชว์เฉพาะระหว่างวัน (หน้า title / โดนไล่ออก / ฉากจบไม่โชว์)
+	quota_marker.visible = quota_height > 0.0 and (state == State.DIALOGUE or state == State.HOLDING or state == State.WAITING)
+	quota_marker.update_progress(tower_top)
 	_refresh_items()
 	sound_toggle.visible = state == State.TITLE   # ปุ่มเปิด/ปิดเสียงมีเฉพาะหน้าแรก
 
@@ -236,6 +242,7 @@ func _start_day() -> void:
 	var d: Dictionary = GameData.DAYS[day - 1]
 	quota_height = d.height
 	max_pieces = d.pieces
+	quota_marker.set_quota(quota_height)
 
 	for b in blocks_root.get_children():
 		b.queue_free()
