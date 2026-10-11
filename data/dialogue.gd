@@ -14,7 +14,6 @@ const DAY_INTRO := {
 		"The white circle shows where it will land. A red circle means it's headed off the platform.",
 		"Stack to {quota} meters with {pieces} pieces. Every piece must land on the pile.",
 		"Lose {max_fails} pieces, over the edge or left on the floor, and you're done. If the pile falls, every piece that falls counts.",
-		"The circle turns red when a piece would hit the floor.",
 		"Don't disappoint me.",
 	],
 	2: [

@@ -1,8 +1,8 @@
 class_name SfxSynth
 extends RefCounted
 
-# สังเคราะห์เสียงชั่วคราว (placeholder) ด้วยโค้ด — ใช้เมื่อยังไม่มีไฟล์เสียงจริงใน res://audio/
-# (ดู scripts/sfx.gd) / mono 16 บิต 22050 Hz
+# เครื่องมือสังเคราะห์เสียงด้วยโค้ด (เสียงทั้งหมดของเกมออกแบบด้วยนี้ใน Sfx._synth แล้วอบเป็น .wav
+# ด้วย tools/bake_sfx.gd — ดู scripts/sfx.gd) / mono 16 บิต 22050 Hz
 
 const RATE := 22050
 

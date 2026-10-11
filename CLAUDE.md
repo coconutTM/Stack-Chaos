@@ -74,6 +74,8 @@ godot --path .                      # รันเกม
 godot -e --path .                   # เปิดใน editor
 godot --headless --path . --export-release "Web" build/web/index.html   # export เว็บ
 godot --headless --path . --quit    # reimport asset / สร้าง .godot ใหม่ (ใช้เช็ค parse error ได้ด้วย)
+godot --headless --path . --import  # import ไฟล์ใหม่ (เช่น .wav ที่เพิ่งอบ — --quit อาจออกก่อน import)
+godot --headless --path . -s tools/bake_sfx.gd   # อบเสียงสังเคราะห์เป็น audio/*.wav
 ```
 
 โปรเจกต์นี้**ไม่มี** test, ไม่มี build script, ไม่มี package manager — ไม่ต้องไปหา
@@ -193,8 +195,10 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 **เสียง / ฟอนต์ / ฉากจบ (Phase 6):**
 - `scripts/sfx.gd` (`Sfx`, สร้างโดย main) — `play(id, volume_db, pitch)` เสียงสั้น (pool 12 ตัว), `set_loop(id, on, db)` เสียงวน
   (`ambient`, `motor`, `rain`), `set_loop_level()` ปรับมอเตอร์ตามความเร็วที่ขยับชิ้น / รายการ id ทั้งหมดอยู่ใน `Sfx.IDS`
-  **ถ้ามี `res://audio/<id>.ogg|.wav|.mp3` จะใช้ไฟล์จริง ไม่มีก็ใช้เสียงสังเคราะห์ชั่วคราวจาก `scripts/sfx_synth.gd`**
-  (สร้างทีละตัวทีละเฟรมตอนเปิดเกม) → วางไฟล์ทับได้เลยไม่ต้องแก้โค้ด / รายการไฟล์ที่ต้องหา: `audio/README.md`
+  **เสียงทั้งหมดเป็นเสียงสังเคราะห์ (ผู้พัฒนาชอบแบบนี้ — อย่าเปลี่ยนเป็นไฟล์เสียงจากที่อื่น)** ออกแบบใน `Sfx._synth()` + `scripts/sfx_synth.gd`
+  แล้วอบเป็น `audio/<id>.wav` ด้วย `tools/bake_sfx.gd` (เกมโหลดไฟล์ก่อนเสมอ — สังเคราะห์สดตอนเปิดทำหน้า title กระตุก ~0.3 วิ)
+  **แก้เสียง = แก้ `_synth()` แล้วรัน bake + `--import` ใหม่** / `.wav.import` ต้องเป็น `compress/mode=0` (ค่าเริ่มต้น QOA) และเสียงวนตั้ง `edit/loop_mode=2`
+  / `tools/` ถูกตัดออกจาก export (`exclude_filter`) / รายละเอียด: `audio/README.md`
 - ที่ไหนเล่นเสียงอะไร: `main.gd` (ปล่อย/เสีย/ผ่านวัน/ไล่ออก/กระแทก/item/คลิก), `DialogueBox.blip` → `Sfx.blip()`,
   `DayModifiers.phase_changed` → เตือน/ลม/ครืน, `Ps1Look.flickered` → ไฟกะพริบ, `ItemSystem.used`
 - **กระแทก:** `Block.hit(impact)` (impact ≥ `HIT_MIN` 2.5) → main เล่นเสียงตามแรง / ถ้า ≥ `HARD_IMPACT` (10) สั่นจอ + ฝุ่นด้วย
@@ -470,7 +474,7 @@ Main (Node3D)                ← scripts/main.gd
 5. [x] Phase 3: item 6 ชนิดแบบ Buckshot Roulette (รอทดสอบ)
 6. [x] Phase 4: PS1 look (ฉากมืด, SpotLight กะพริบ, fog, PSX shader, โรงขยะ) — รอเช็ค FPS บนเว็บจริง (กด F3)
 7. [x] Phase 5: ตัวปรับของวัน (ลม/ฝน/แผ่นดินไหว) + ขยะพิเศษ (น้ำมัน/ทีวีเปราะ/ลังเหล็ก) + สั่นจอ (รอทดสอบ)
-8. [x] Phase 6: เสียง (สังเคราะห์ชั่วคราว + รองรับไฟล์จริง), ฟอนต์ pixel, ปุ่มปิดเสียง, ฉากจบ (รอคุณหาไฟล์เสียงจริงมาใส่ `audio/`)
+8. [x] Phase 6: เสียง (สังเคราะห์ด้วยโค้ด อบเป็น .wav — เป็นเสียงจริงของเกม), ฟอนต์ pixel, ปุ่มปิดเสียง, ฉากจบ
 9. [x] โมเดล Kenney (CC0) แทนขยะ 8 ชนิด + ขยะใหม่ 5 ชนิด + ของประดับ/อาคารในฉาก (เครนคง primitive) (รอทดสอบ)
 10. [x] Phase 8 (พัฒนาบน branch `test` แล้ว merge): เส้นโควต้า 3D + แถบวัดความสูง + ข้อความเด้ง, เมนู title, ใบเกรด S/A/B/C + เงินเดือน,
     โหมด OVERTIME, เลือกรางวัล item 1 ใน 3, ตัวปรับ BLACKOUT/FOG, ขยะ MATTRESS/GOLD TROPHY, หน้า SETTINGS, ความสูงนับจากผิวแท่น,

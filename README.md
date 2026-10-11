@@ -139,7 +139,8 @@ scripts/    โค้ดเกม — main.gd คือตัวคุมเก�
 scenes/     main.tscn + scenes/blocks/ (ชิ้นขยะแยกไฟล์ละชนิด)
 shaders/    PSX shader + post-process
 assets/     โมเดล 3D
-audio/      ไฟล์เสียง (ไม่มีไฟล์ = ใช้เสียงสังเคราะห์จากโค้ด)
+audio/      เสียงของเกม (.wav ที่อบจากเสียงสังเคราะห์ในโค้ด scripts/sfx.gd ด้วย tools/bake_sfx.gd)
+tools/      สคริปต์ช่วยพัฒนา (ไม่ถูก export)
 fonts/      ฟอนต์ pixel
 ```
 
@@ -152,6 +153,7 @@ fonts/      ฟอนต์ pixel
 | [Survival Kit](https://kenney.nl/assets/survival-kit), [Furniture Kit](https://kenney.nl/assets/furniture-kit), [City Kit Industrial](https://kenney.nl/assets/city-kit-industrial) | Kenney | CC0 |
 | [Cars Bundle](https://poly.pizza/bundle/Cars-Bundle-FE5IWe6OMk) | Quaternius | CC0 |
 | ฟอนต์ [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) | CodeMan38 | SIL OFL 1.1 |
+| เสียงทั้งหมด (สังเคราะห์ด้วยโค้ด) | ทีมผู้พัฒนา | — |
 
 รายละเอียดเครดิตโมเดล: [`assets/models/CREDITS.md`](assets/models/CREDITS.md)
 

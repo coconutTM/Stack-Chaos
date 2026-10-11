@@ -21,7 +21,8 @@ const CREDITS_LINES := [
 	"3D models: Kenney (CC0)",
 	"Cars: Quaternius (CC0)",
 	"Font: Press Start 2P (OFL)",
-	"Made with Godot 4",
+	"Sound: synthesized in code",
+	"Made with Godot 4.7",
 ]
 const HOW_TO_LINES := [
 	"Mouse: move the piece",
