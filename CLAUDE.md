@@ -228,6 +228,10 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 `user://settings.cfg`) โชว์บนหน้า title (`BEST GRADES` ใน `TitleMenu`) / คำพูด boss ตามเกรด = `Dialogue.GRADE_LINES` / จบเกมโชว์ `TOTAL EARNED`
 **ทดสอบด้วยสคริปต์แล้วอย่าลืมคืน `settings.cfg`** (probe ที่เล่นจนผ่านวันจะเขียนเกรดลงไฟล์จริงของผู้เล่น)
 
+**เลือกรางวัล item (branch test):** หลังหน้าสรุปผลงาน ถ้าเกรด ≤ `GameData.REWARD_MAX_GRADE` (A หรือดีกว่า) และคลังยังไม่เต็ม และยังมีวันต่อไป →
+`ItemChoice` (`scripts/item_choice.gd`, CanvasLayer 12) โชว์การ์ด 3 ใบจาก `ItemData.roll_distinct(3)` (ไม่ซ้ำ ตามน้ำหนัก) `await item_choice.choose(ids, boss_line)` คืน id ที่เลือก
+(`""` = ถูกตัดโดย `abort()` ใน `/day` / `/overtime`) → `items.give(id)` / แจก item สุ่มตอนต้นวันถัดไปยังเกิดตามเดิม (`GIVE_PER_DAY`) / บท boss = `Dialogue.REWARD_LINES`
+
 **โหมด OVERTIME (branch test):** ปลดล็อกหลังจบ 5 วัน (`Settings.night_shift`) / ปุ่ม OVERTIME บนหน้า title (`_start_run(true)`) /
 `main.overtime = true`, `day = DAYS.size() + เลขกะ` (นับต่อจากวันที่ 5 ให้ `kinds_for_day()` ครบทุกชนิด) / `_shift()` = เลขกะ /
 ข้อมูลกะมาจาก `GameData.overtime_day(n)` (โควต้า +`OVERTIME_HEIGHT_STEP` ต่อกะ, ชิ้น +`OVERTIME_PIECE_STEP`, สุ่มตัวปรับ 1 อย่าง (กะ 4+ = 2 อย่าง) จาก `OVERTIME_MODIFIERS`)

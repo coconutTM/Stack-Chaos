@@ -33,6 +33,7 @@ var item_bar: ItemBar
 var height_meter: HeightMeter
 var review: ReviewScreen
 var title_menu: TitleMenu
+var item_choice: ItemChoice
 var look: Ps1Look
 var modifiers: DayModifiers
 var screen_fx: ScreenFx
@@ -98,6 +99,9 @@ func _ready() -> void:
 	add_child(dialogue)
 	review = ReviewScreen.new()
 	add_child(review)
+	item_choice = ItemChoice.new()
+	add_child(item_choice)
+	item_choice.picked.connect(func(id: String) -> void: if id != "": sfx.play("item_get"))
 	title_menu = TitleMenu.new()
 	add_child(title_menu)
 	title_menu.play_pressed.connect(_start_run)
@@ -369,9 +373,17 @@ func _end_day(passed: bool, reason := "") -> void:
 	await dialogue.say(_lines(pass_lines))
 	if flow != _flow_id:
 		return
-	await _show_review()
+	var grade: int = await _show_review()
 	if flow != _flow_id:
 		return
+	# เกรดดี → boss ให้เลือกรางวัล item 1 ใน 3 (ถ้าคลังยังไม่เต็ม และยังมีวันต่อไป)
+	var more_days := overtime or day < GameData.DAYS.size()
+	if more_days and grade <= GameData.REWARD_MAX_GRADE and items.inventory.size() < ItemData.MAX_SLOTS:
+		var picked: String = await item_choice.choose(ItemData.roll_distinct(3), Dialogue.REWARD_LINES.pick_random())
+		if flow != _flow_id:
+			return
+		if picked != "":
+			items.give(picked)
 	if not overtime and day >= GameData.DAYS.size():
 		await dialogue.say(_lines(Dialogue.ENDING))
 		if flow != _flow_id:
@@ -389,7 +401,7 @@ func _end_day(passed: bool, reason := "") -> void:
 
 
 # หน้าสรุปผลงานท้ายวัน: เกรดจากชิ้นที่เสีย/ที่เหลือ → ค่าแรง (บวกเข้า money) / จดเกรดดีสุดของวัน
-func _show_review() -> void:
+func _show_review() -> int:
 	var spare := maxi(max_pieces - pieces_used, 0)
 	var grade := GameData.grade_for(failed_attempts, spare)
 	var info: Dictionary = GameData.GRADES[grade]
@@ -412,6 +424,7 @@ func _show_review() -> void:
 		],
 		"boss": Dialogue.GRADE_LINES[info.id].pick_random(),
 	})
+	return grade
 
 
 # ฉากจบ: จอมืดสนิท มีแต่ตาของผู้เล่นเรืองขึ้นกลางความมืด (boss หายไปแล้ว)
@@ -490,6 +503,7 @@ func _debug_day(args: PackedStringArray) -> String:
 	pause_menu.set_paused(false)
 	dialogue.abort()
 	review.abort()
+	item_choice.abort()
 	screen_fx.clear(0.01)   # เผื่อกำลังอยู่ในฉากจบ (จอมืด + ตา)
 	sfx.set_loop("ambient", true, -10.0)
 	_reset_time()
@@ -510,6 +524,7 @@ func _debug_overtime(args: PackedStringArray) -> String:
 	pause_menu.set_paused(false)
 	dialogue.abort()
 	review.abort()
+	item_choice.abort()
 	screen_fx.clear(0.01)
 	sfx.set_loop("ambient", true, -10.0)
 	_reset_time()

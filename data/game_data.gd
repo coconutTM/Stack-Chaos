@@ -44,6 +44,7 @@ const GRADES := [
 	{"id": "B", "max_fails": 2, "min_spare": 1, "bonus": 25, "color": Color(0.55, 0.75, 1.0)},
 	{"id": "C", "max_fails": 99, "min_spare": 0, "bonus": 0, "color": Color(0.75, 0.75, 0.75)},
 ]
+const REWARD_MAX_GRADE := 1   # ได้เกรด A (index 1) หรือดีกว่า → boss ให้เลือกรางวัล item 1 ใน 3 ก่อนขึ้นวันใหม่
 const WAGE_BASE := 100        # ค่าแรงวันที่ 1
 const WAGE_PER_DAY := 25      # ค่าแรงเพิ่มต่อวัน
 const WAGE_PER_SPARE := 20    # เงินพิเศษต่อชิ้นที่เหลือ

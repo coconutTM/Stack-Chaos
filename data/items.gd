@@ -53,3 +53,23 @@ static func roll() -> String:
 		if r <= 0.0:
 			return id
 	return ITEMS.keys()[0]
+
+
+# สุ่ม item ที่ไม่ซ้ำกัน count ชิ้นตามน้ำหนัก (ใช้ตอน boss ให้เลือกรางวัล)
+static func roll_distinct(count: int) -> Array[String]:
+	var pool: Array = ITEMS.keys()
+	var out: Array[String] = []
+	while out.size() < count and not pool.is_empty():
+		var total := 0.0
+		for id in pool:
+			total += float(ITEMS[id].weight)
+		var r := randf() * total
+		var pick: String = pool[pool.size() - 1]
+		for id in pool:
+			r -= float(ITEMS[id].weight)
+			if r <= 0.0:
+				pick = id
+				break
+		out.append(pick)
+		pool.erase(pick)
+	return out

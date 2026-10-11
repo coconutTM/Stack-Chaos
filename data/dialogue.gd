@@ -107,6 +107,9 @@ const OVERTIME_PASS := [
 	["{height} meters. Barely a scratch.", "Keep going."],
 ]
 
+# boss ให้เลือกรางวัล item (เกรด A ขึ้นไป) — สุ่มหนึ่งบรรทัด
+const REWARD_LINES := ["Take one. You earned it.", "Pick your reward.", "Good work deserves a tool. Choose.", "Don't waste it."]
+
 # ท้ายวัน — โดนไล่ออก (แยกสาเหตุ)
 const FIRED_FAILS := [
 	"You lost {fails} pieces.",
