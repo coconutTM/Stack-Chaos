@@ -23,6 +23,7 @@ var guide: DropGuide
 var quota_marker: QuotaMarker
 var dialogue: DialogueBox
 var item_bar: ItemBar
+var height_meter: HeightMeter
 var look: Ps1Look
 var modifiers: DayModifiers
 var screen_fx: ScreenFx
@@ -86,6 +87,8 @@ func _ready() -> void:
 	item_bar = ItemBar.new()
 	add_child(item_bar)
 	item_bar.slot_pressed.connect(_on_item_slot)
+	height_meter = HeightMeter.new()
+	add_child(height_meter)
 	items.used.connect(func(ok: bool) -> void: sfx.play("item_use" if ok else "deny"))
 	dialogue.blip.connect(sfx.blip)
 	look.flickered.connect(func() -> void: sfx.play("buzz", -6.0))
@@ -131,6 +134,8 @@ func _process(delta: float) -> void:
 	# เส้นโควต้าโชว์เฉพาะระหว่างวัน (หน้า title / โดนไล่ออก / ฉากจบไม่โชว์)
 	quota_marker.visible = quota_height > 0.0 and (state == State.DIALOGUE or state == State.HOLDING or state == State.WAITING)
 	quota_marker.update_progress(tower_top)
+	height_meter.visible = quota_marker.visible
+	height_meter.set_values(tower_top, best_height, quota_height)
 	_refresh_items()
 	sound_toggle.visible = state == State.TITLE   # ปุ่มเปิด/ปิดเสียงมีเฉพาะหน้าแรก
 

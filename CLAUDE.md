@@ -313,6 +313,7 @@ promptly instead of waiting out `MAX_WAIT`.
   จะตกลงลานนอกแท่น `pad_top`) / main ตั้ง `guide.target` ทุกเฟรม
 - `scripts/quota_marker.gd` (`QuotaMarker`) — กรอบเรืองแสงรอบแท่นที่ความสูงโควต้า + ป้าย `QUOTA x m` (Label3D ฟอนต์ pixel อยู่ขอบฝั่งตรงข้ามกล้อง)
   / เหลือง → กะพริบเมื่อห่างโควต้า ≤ `NEAR_QUOTA` → เขียวเมื่อถึง / main เรียก `set_quota()` ต้นวัน และ `update_progress(tower_top)` ทุกเฟรม (โชว์เฉพาะระหว่างวัน)
+- `scripts/height_meter.gd` (`HeightMeter`, CanvasLayer layer 4) — แถบวัดความสูงแนวตั้งขอบขวาจอ (x≈410, y 66–186 พิกัด 426×240): เติมสี = ระดับกอง, ขีดขาว = สูงสุดของวัน (`best_height`), ขีดเหลือง + เลข = โควต้า / main เรียก `set_values(tower_top, best_height, quota_height)` ทุกเฟรม (ซ่อน/โชว์พร้อม QuotaMarker) / วาดด้วย `_draw` ไม่มี node ลูก
 
 main.gd สร้าง `Crane`, `DropGuide`, `QuotaMarker` เองใน `_ready()` (ไม่ได้อยู่ใน `main.tscn`)
 

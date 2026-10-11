@@ -37,7 +37,7 @@ func _ready() -> void:
 	_label = Label3D.new()
 	_label.font = preload("res://fonts/pixel.ttf")
 	_label.font_size = 32          # พหุคูณของ 8 ให้ฟอนต์ pixel คม
-	_label.pixel_size = 0.024
+	_label.pixel_size = 0.02
 	_label.outline_size = 8
 	_label.outline_modulate = Color(0.02, 0.02, 0.04)
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
