@@ -30,6 +30,11 @@ const BOND_BREAK_ANGLE := 0.6        # หมุนคลาดเกินก�
 const BOND_CALM_TIME := 0.08         # สองชิ้นแตะกันและ "เกือบนิ่ง" ต่อเนื่องเท่านี้ (วินาที) ถึงเกิดพันธะ (สั้น = จับท่าตอนเพิ่งลงวาง ก่อนกองเริ่มเอียง)
 const BOND_DEADZONE := 0.01          # คลาดน้อยกว่านี้ไม่ออกแรง → ชิ้นได้หลับ/นิ่ง (settled)
 
+# ความนิ่งของกองสูง (จูนด้วย benchmark กองทรงกล่อง 16 ชิ้น 200 รอบ: ชิ้นที่ร่วงต่อรอบ 5.99 → 3.50, รอบที่กองล้ม 68% → 40%)
+# แผ่นไม้วางจนกึ่งกลางเลยกลางลัง 0.85 ม. ยังค้าง (เอียง ~24°) / 1.0 ม. ยังล้ม → วางพลาดมากๆ ยังล้มจริง
+const COM_DROP := 0.4           # ศูนย์ถ่วงต่ำกว่ากึ่งกลางกี่เท่าของความสูงกล่องชน (ล้มยากขึ้นแบบตุ๊กตาล้มลุก)
+const MIN_ANGULAR_DAMP := 3.0   # angular_damp ขั้นต่ำของทุกชิ้น (ค่าใน .tscn ต่ำกว่านี้ถูกยกขึ้น: กล่อง 0.6, ทรงกลม 1.8 → 3.0) ลดการโยก/พลิกของกองสูง
+
 const SCENES := {
 	Kind.CRATE: preload("res://scenes/blocks/block_crate.tscn"),
 	Kind.PLANK: preload("res://scenes/blocks/block_plank.tscn"),
@@ -90,6 +95,11 @@ func _ready() -> void:
 		var mi := child as MeshInstance3D
 		if mi:
 			mi.material_override = Psx.from_standard(mi.material_override)
+
+	# กองสูงนิ่งขึ้น: ศูนย์ถ่วงต่ำลง + หน่วงการหมุนขั้นต่ำ (ทำหลัง _setup_car ที่ตั้งกล่องชนของรถ)
+	angular_damp = maxf(angular_damp, MIN_ANGULAR_DAMP)
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	center_of_mass = Vector3(0.0, -_shape_size().y * COM_DROP, 0.0)
 
 	# ตอนแรกให้ลอยค้างไว้ ให้ผู้เล่นเลื่อนด้วยเมาส์
 	continuous_cd = true
