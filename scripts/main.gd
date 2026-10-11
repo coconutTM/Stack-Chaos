@@ -11,6 +11,13 @@ const KILL_Y := -4.0      # ตกต่ำกว่านี้ = ถือว�
 const MAX_WAIT := 5.0     # รอบล็อกนิ่งนานสุดกี่วินาที
 const HARD_IMPACT := 10.0   # impact เกินนี้ = กระแทกหนัก (เสียงหนัก + สั่นจอ + ฝุ่น) ดู Block.hit
 const RESTART_DELAY := 0.3  # หน่วงหลังขึ้นหน้าจบก่อนรับคลิก (กันเผลอคลิกข้าม)
+const TITLE_SPIN := 0.12    # ความเร็วกล้องหมุนรอบกองตัวอย่างตอนอยู่หน้า title (เรเดียน/วินาที)
+const TITLE_PILE_TOP := 3.0 # ความสูงที่กล้อง/ไฟโฟกัสตอน title (กองตัวอย่างสูงราว 4-5 ม.)
+# กองตัวอย่างหน้า title: [ชนิด, ตำแหน่ง x, z] ปล่อยทีละชิ้นจากสูง (ไล่ความสูงเอง) แล้วให้ฟิสิกส์จัดกองเอง
+const TITLE_PILE := [
+	[Block.Kind.STEEL_CRATE, 0.0, 0.0], [Block.Kind.SOFA, 0.1, -0.1], [Block.Kind.CRATE, -0.3, 0.1],
+	[Block.Kind.SQUARE, 0.2, 0.0], [Block.Kind.TV, -0.1, 0.1], [Block.Kind.CARDBOARD_BOX, 0.1, 0.0],
+]
 
 @onready var camera: OrbitCamera = $Camera3D
 @onready var blocks_root: Node3D = $Blocks
@@ -25,6 +32,7 @@ var dialogue: DialogueBox
 var item_bar: ItemBar
 var height_meter: HeightMeter
 var review: ReviewScreen
+var title_menu: TitleMenu
 var look: Ps1Look
 var modifiers: DayModifiers
 var screen_fx: ScreenFx
@@ -89,6 +97,11 @@ func _ready() -> void:
 	add_child(dialogue)
 	review = ReviewScreen.new()
 	add_child(review)
+	title_menu = TitleMenu.new()
+	add_child(title_menu)
+	title_menu.play_pressed.connect(_start_run)
+	title_menu.overtime_pressed.connect(_start_run.bind(true))
+	title_menu.clicked.connect(func() -> void: sfx.play("ui_click"))
 	review.tick.connect(func() -> void: sfx.play("ui_click", -6.0))
 	review.stamp.connect(func() -> void: sfx.play("item_get"))
 	items = ItemSystem.new(self)
@@ -125,6 +138,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	# กล้องโคจร/ตามความสูงกองเอง (orbit_camera.gd) / ที่นี่แค่บอกความสูงเป้าหมาย
+	if state == State.TITLE:
+		camera.yaw += TITLE_SPIN * delta   # หน้า title: กล้องวนรอบกองตัวอย่างช้าๆ
 	camera.target_y = tower_top
 	look.target_y = tower_top
 	modifiers.running = state == State.HOLDING or state == State.WAITING
@@ -208,11 +223,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	match state:
-		State.TITLE:
-			if event.button_index == MOUSE_BUTTON_LEFT:
-				_start_run()
-			elif event.button_index == MOUSE_BUTTON_RIGHT and Settings.night_shift:   # OVERTIME ปลดล็อกหลังจบเกม (เมนูปุ่มจริงมาทีหลัง)
-				_start_run(true)
 		State.FIRED, State.ENDING:   # กลับไปหน้าแรกก่อน (ไม่เริ่มวันที่ 1 ทันที)
 			if event.button_index == MOUSE_BUTTON_LEFT and _screen_ready():
 				_go_title()
@@ -244,6 +254,7 @@ func _on_camera_tapped() -> void:
 # ---------- วัน / รอบการเล่น ----------
 
 func _start_run(is_overtime := false) -> void:
+	title_menu.close()
 	overtime = is_overtime
 	day = GameData.DAYS.size() + 1 if is_overtime else 1
 	score = 0
@@ -344,7 +355,7 @@ func _end_day(passed: bool, reason := "") -> void:
 				survived, "NEW RECORD!" if is_record and survived > 0 else "BEST: %d" % Settings.best_overtime, money
 			])
 		else:
-			_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nLOST: %d PIECES\n\nclick to start over" % [
+			_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nLOST: %d PIECES\n\nclick to return to title" % [
 				day, tower_top, quota_height, failed_attempts
 			])
 		state = State.FIRED
@@ -434,25 +445,24 @@ func _show_title() -> void:
 	for b in blocks_root.get_children():
 		b.queue_free()
 	current = null
-	tower_top = 0.0
+	tower_top = TITLE_PILE_TOP
 	score_label.hide()
-	var subtitle := "\n(night shift)" if Settings.night_shift else ""
-	var extra := ""
-	if Settings.night_shift:   # OVERTIME ปลดล็อกแล้ว
-		extra = "\nright click: OVERTIME"
-		if Settings.best_overtime > 0:
-			extra += " (best %d)" % Settings.best_overtime
-	_show_screen("STACK CHAOS!%s\n\nclick to start%s%s" % [subtitle, extra, _best_grades_text()])
+	game_over_label.hide()
+	title_menu.open()
+	_spawn_title_pile.call_deferred()   # รอให้ชิ้นเก่าถูกลบเสร็จก่อน ไม่ให้ซ้อนทับกัน
 
 
-# เกรดดีสุดของแต่ละวันบนหน้า title (ยังไม่เคยผ่านเลย = ไม่โชว์)
-func _best_grades_text() -> String:
-	var parts: Array[String] = []
-	var any := false
-	for g in Settings.best_grades:
-		parts.append(String(GameData.GRADES[g].id) if g >= 0 else "-")
-		any = any or g >= 0
-	return "\n\nBEST GRADES\n%s" % "  ".join(parts) if any else ""
+# กองตัวอย่างหน้า title: ปล่อยจากที่สูงทีละชั้น (ไม่มีใครถือ ไม่นับคะแนน) ให้ฟิสิกส์จัดกองเอง
+func _spawn_title_pile() -> void:
+	if state != State.TITLE:
+		return
+	var y := guide.pad_top + 1.0
+	for e in TITLE_PILE:
+		var blk := Block.spawn(e[0])
+		blk.position = Vector3(e[1], y, e[2])
+		blocks_root.add_child(blk)
+		blk.release()
+		y += 1.5
 
 
 func _show_screen(text: String) -> void:

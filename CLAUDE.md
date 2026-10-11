@@ -86,7 +86,7 @@ godot --headless --path . --quit    # reimport asset / สร้าง .godot �
 
 ตัวคุมเกมด้วย state machine `State { TITLE, DIALOGUE, HOLDING, WAITING, FIRED, ENDING }`:
 
-- **`TITLE`** — หน้าแรก (ใช้ `game_over_label` โชว์ข้อความ) / คลิกซ้าย → `_start_run()` (วันที่ 1)
+- **`TITLE`** — หน้าแรก: `TitleMenu` (`scripts/title_menu.gd`, CanvasLayer 6) ปุ่ม PLAY / OVERTIME (ล็อกจนกว่า `Settings.night_shift`) / HOW TO PLAY / CREDITS + `BEST GRADES` / ฉาก 3D = กองตัวอย่าง `TITLE_PILE` ที่ `_show_title()` ปล่อยลงแท่น (`_spawn_title_pile`, `call_deferred`) + กล้องหมุนช้าๆ (`TITLE_SPIN` ใน `_process`) / ปุ่ม PLAY → `_start_run()` (วันที่ 1) ปุ่ม OVERTIME → `_start_run(true)` / เพิ่มชื่อทีมในหน้า CREDITS ที่ `TitleMenu.CREDITS_LINES`
 - **`DIALOGUE`** — boss กำลังพูดแบบบล็อก (ต้นวัน / ท้ายวัน / ฉากจบ) ฟิสิกส์ใน `_physics_process` หยุดตรวจ
 - **`HOLDING`** — `move_held_block()` ยิง ray จากเมาส์ลงบน `Plane(Vector3.UP, hold_y)` แล้ว clamp
   ตำแหน่งไว้ใน `±BOUND` / บล็อก `freeze = true` แบบ `FREEZE_MODE_KINEMATIC`
@@ -222,10 +222,10 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 เกรด S/A/B/C จาก `GameData.grade_for(failed_attempts, spare)` (spare = `max_pieces - pieces_used`, เกณฑ์อยู่ใน `GameData.GRADES`) + ค่าแรง `GameData.wage_for()` บวกเข้า
 `main.money` (รีเซ็ตใน `_start_run()` / `/day`) / แถวผลโผล่ทีละแถว คลิก = ข้ามอนิเมชัน → คลิกอีกที = ปิด (`await review.show_review(data)`,
 `review.abort()` ใน `_debug_day` เพื่อตัด coroutine ค้าง) / `Settings.record_grade(day, grade)` จดเกรดดีสุดของแต่ละวัน (`Settings.best_grades` ใน
-`user://settings.cfg`) โชว์บนหน้า title (`BEST GRADES`) / คำพูด boss ตามเกรด = `Dialogue.GRADE_LINES` / จบเกมโชว์ `TOTAL EARNED`
+`user://settings.cfg`) โชว์บนหน้า title (`BEST GRADES` ใน `TitleMenu`) / คำพูด boss ตามเกรด = `Dialogue.GRADE_LINES` / จบเกมโชว์ `TOTAL EARNED`
 **ทดสอบด้วยสคริปต์แล้วอย่าลืมคืน `settings.cfg`** (probe ที่เล่นจนผ่านวันจะเขียนเกรดลงไฟล์จริงของผู้เล่น)
 
-**โหมด OVERTIME (branch test):** ปลดล็อกหลังจบ 5 วัน (`Settings.night_shift`) / หน้า title คลิกขวา = เริ่ม (`_start_run(true)`; เมนูปุ่มจริงมาทีหลังใน A4) /
+**โหมด OVERTIME (branch test):** ปลดล็อกหลังจบ 5 วัน (`Settings.night_shift`) / ปุ่ม OVERTIME บนหน้า title (`_start_run(true)`) /
 `main.overtime = true`, `day = DAYS.size() + เลขกะ` (นับต่อจากวันที่ 5 ให้ `kinds_for_day()` ครบทุกชนิด) / `_shift()` = เลขกะ /
 ข้อมูลกะมาจาก `GameData.overtime_day(n)` (โควต้า +`OVERTIME_HEIGHT_STEP` ต่อกะ, ชิ้น +`OVERTIME_PIECE_STEP`, สุ่มตัวปรับ 1 อย่าง (กะ 4+ = 2 อย่าง) จาก `OVERTIME_MODIFIERS`)
 เก็บไว้ที่ `main._cur_day` (**อย่าเรียก `overtime_day()` ซ้ำในวันเดียวกัน** ตัวปรับสุ่มใหม่ทุกครั้ง) / บทพูด `Dialogue.OVERTIME_FIRST/_INTRO/_PASS` (ตัวแปรใหม่ `{shift}`) /
