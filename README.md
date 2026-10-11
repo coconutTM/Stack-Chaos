@@ -2,9 +2,9 @@
 
 > เกมกองขยะ 3D แบบฟิสิกส์ — เป็นพนักงานโรงขยะ กองขยะให้สูงถึงโควต้าของ boss ให้ได้ครบ 5 วัน ไม่งั้น **YOU'RE FIRED!**
 
-**▶ เล่นบนเว็บ:** [itch.io](https://ITCH_USERNAME.itch.io/stack-chaos) <!-- TODO: ใส่ลิงก์จริงหลังอัปโหลด -->
+**▶ เล่นบนเว็บ:** [itch.io](https://coconuttm.itch.io/stack-chaos)
 
-![Screenshot](docs/screenshot.png) <!-- TODO: ถ่ายภาพหน้าจอ / GIF แล้ววางที่ docs/screenshot.png -->
+![Screenshot](docs/screenshot.png)
 
 ---
 
@@ -97,14 +97,13 @@ fonts/      ฟอนต์ pixel
 
 ## เครดิต
 
-**พัฒนาโดย:** <!-- TODO: ชื่อ-นามสกุล / รหัสนักศึกษา --> — วิชา CP352203 Computer Game Development ภาคต้น ปีการศึกษา 2569
+**พัฒนาโดย:** 683380290-0 นายฐากูร มูลวิชา, 683380294-2 นายธนกร มีฤทธิ์, 683380299-2 นายธันยบูรณ์ สินเธาว์, 683380304-5 นายปรเมษฐ์ จันทมิฬ — วิชา CP352203 Computer Game Development ภาคต้น ปีการศึกษา 2569
 
 | ทรัพยากร | ผู้สร้าง | ไลเซนส์ |
 | --- | --- | --- |
 | [Survival Kit](https://kenney.nl/assets/survival-kit), [Furniture Kit](https://kenney.nl/assets/furniture-kit), [City Kit Industrial](https://kenney.nl/assets/city-kit-industrial) | Kenney | CC0 |
-| Cars Bundle (รถ) | <!-- TODO: ตรวจที่มา --> | <!-- TODO --> |
+| [Cars Bundle](https://poly.pizza/bundle/Cars-Bundle-FE5IWe6OMk) | Quaternius | CC0 |
 | ฟอนต์ [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) | CodeMan38 | SIL OFL 1.1 |
-| เสียง | <!-- TODO: ใส่หลังได้ไฟล์เสียงจริง (ตอนนี้สังเคราะห์ด้วยโค้ด) --> | |
 
 รายละเอียดเครดิตโมเดล: [`assets/models/CREDITS.md`](assets/models/CREDITS.md)
 
