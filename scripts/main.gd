@@ -145,6 +145,15 @@ func _ready() -> void:
 	score_label.add_theme_font_size_override("font_size", 8)   # Press Start 2P คมสุดที่พหุคูณของ 8
 	game_over_label.add_theme_font_size_override("font_size", 16)
 	game_over_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# หน้าข้อความเต็มจอ (YOU'RE FIRED! / SHIFT COMPLETE) มีพื้นหลังดำสนิทอยู่หลังตัวหนังสือ โชว์/ซ่อนตามป้ายเสมอ
+	var screen_bg := ColorRect.new()
+	screen_bg.color = Color.BLACK
+	screen_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	screen_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	screen_bg.visible = false
+	$UI.add_child(screen_bg)
+	$UI.move_child(screen_bg, game_over_label.get_index())   # อยู่ใต้ป้ายแต่ทับ HUD (ScoreLabel)
+	game_over_label.visibility_changed.connect(func() -> void: screen_bg.visible = game_over_label.visible)
 	screen_fx.cover_now()   # เปิดเกมจากจอดำแล้วค่อยๆ สว่าง
 	_show_title()
 	screen_fx.uncover(0.8)
