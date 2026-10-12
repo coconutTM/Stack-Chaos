@@ -103,7 +103,7 @@ godot --headless --path . -s tools/bake_sfx.gd   # อบเสียงสั�
 
 **Dev console (ลับ):** `scripts/dev_console.gd` (`DevConsole`, layer 30) — กด `` ` `` (ปุ่มซ้ายเลข 1 ใช้ `physical_keycode` ได้แม้คีย์บอร์ดไทย) หรือ F1
 เปิด/ปิด, Esc ปิด / เปิดอยู่ = หยุดเกม / `register(name, usage, callable)` — main ลงทะเบียนคำสั่งใน `_ready()`: **`/day N`** (เริ่มรอบใหม่ที่วัน N
-ใช้ได้ทุกหน้า), **`/give <item|all>`** (`ItemSystem.give()`), ในตัว `/help` `/clear` / ไม่มีอะไรบอกผู้เล่นว่ามี (ลับ) / **เพิ่มคำสั่ง = เพิ่ม `register()` + เมธอด**
+ใช้ได้ทุกหน้า), **`/give <item|all>`** (`ItemSystem.give()`), **`/money N`** (ตั้งเงิน), ในตัว `/help` `/clear` / ไม่มีอะไรบอกผู้เล่นว่ามี (ลับ) / **เพิ่มคำสั่ง = เพิ่ม `register()` + เมธอด**
 **`_flow_id`** ใน main: `_start_day()` / `_end_day()` / `_go_title()` จำ id ตอนเริ่มแล้วเช็คหลังทุก `await` (`if flow != _flow_id: return`) —
 `/day` เพิ่ม id + `DialogueBox.abort()` เพื่อตัด coroutine เก่าที่ค้างอยู่ (ไม่งั้น `spawn_block()` ซ้ำ) / **เขียน flow ใหม่ที่มี `await` ต้องเช็ค `_flow_id` ด้วย**
 
@@ -240,6 +240,17 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 **เลือกรางวัล item:** หลังหน้าสรุปผลงาน ถ้าเกรด ≤ `GameData.REWARD_MAX_GRADE` (A หรือดีกว่า) และคลังยังไม่เต็ม และยังมีวันต่อไป →
 `ItemChoice` (`scripts/item_choice.gd`, CanvasLayer 12) โชว์การ์ด 3 ใบจาก `ItemData.roll_distinct(3)` (ไม่ซ้ำ ตามน้ำหนัก) `await item_choice.choose(ids, boss_line)` คืน id ที่เลือก
 (`""` = ถูกตัดโดย `abort()` ใน `/day` / `/overtime`) → `items.give(id)` / แจก item สุ่มตอนต้นวันถัดไปยังเกิดตามเดิม (`GIVE_PER_DAY`) / บท boss = `Dialogue.REWARD_LINES`
+
+**ร้านของ boss + สินบน (ใช้เงิน):** `main.money` = เงินในกระเป๋า (ลดได้) / `main.earned` = รายได้รวมของรอบ (ไม่ลด ใช้โชว์ `TOTAL EARNED` ตอนจบ) / หน้าสรุปผลงานแถวสุดท้ายคือ `CASH`
+รีเซ็ต `money` / `earned` / `bribes_used` ทุกที่ที่เริ่มรอบ (`_start_run`, `/day`, `/overtime`)
+- **ร้าน** `BossShop` (`scripts/boss_shop.gd`, CanvasLayer 12) — เปิดใน `_end_day()` ต่อจากเลือกรางวัล ถ้ายังมีวันต่อไป และเงินพอซื้อชิ้นที่ถูกสุด และคลังไม่เต็ม (`main._open_shop()`)
+  สุ่มของ `ItemData.SHOP_STOCK` (3) ชิ้นจาก `roll_distinct()` / ราคา = `"price"` ใน `ItemData.ITEMS` / ร้านแค่แสดงผล **main เป็นเจ้าของเงินและคลัง**:
+  `shop.buy` = `main._shop_buy(id)` คืน `{ok, cash, line}` / ซื้อได้หลายชิ้นจนกด LEAVE / การ์ดใช้ `ItemChoice.make_card()` ร่วมกับหน้าเลือกรางวัล / `shop.abort()` ใน `/day` `/overtime`
+- **สินบน** — โดนไล่ออก (ทุกสาเหตุ ทั้งโหมดปกติและ OVERTIME) หลัง boss พูดบทไล่ออก ถ้า `money >= GameData.bribe_cost(bribes_used)` (`BRIBE_BASE` 250 x2 ทุกครั้งในรอบ) →
+  `main._offer_bribe(cost)` ใช้ `ItemChoice.offer()` (การ์ด PAY / WALK AWAY) → จ่าย = หักเงิน + `_start_day(true)`
+  **`_start_day(retry)`**: ใช้ `_cur_day` เดิม (ห้ามเรียก `overtime_day()` ซ้ำ) ข้ามบทต้นวันและไม่แจก item ประจำวัน (พูด `Dialogue.BRIBE_PAID`) / คลังคงเดิม
+- บท: `Dialogue.SHOP_*`, `BRIBE_OFFER` (`{cost}`), `BRIBE_PAID` / dev console: `/money N`
+- **ถ้าจะลดของฟรี** เพราะมีร้านแล้วของล้น แก้ `ItemData.GIVE_PER_DAY` (2 → 1)
 
 **โหมด OVERTIME:** ปลดล็อกหลังจบ 5 วัน (`Settings.night_shift`) / ปุ่ม OVERTIME บนหน้า title (`_start_run(true)`) /
 `main.overtime = true`, `day = DAYS.size() + เลขกะ` (นับต่อจากวันที่ 5 ให้ `kinds_for_day()` ครบทุกชนิด) / `_shift()` = เลขกะ /

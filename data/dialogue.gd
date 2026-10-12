@@ -111,6 +111,20 @@ const OVERTIME_PASS := [
 # boss ให้เลือกรางวัล item (เกรด A ขึ้นไป) — สุ่มหนึ่งบรรทัด
 const REWARD_LINES := ["Take one. You earned it.", "Pick your reward.", "Good work deserves a tool. Choose.", "Don't waste it."]
 
+# ร้านของ boss (หลังสรุปผลงานท้ายวัน ใช้เงินซื้อ item) — สุ่มหนึ่งบรรทัด
+const SHOP_OPEN := ["Spend it if you like. Or save it. You may need it.", "My stock. Not cheap.", "Cash only. No refunds."]
+const SHOP_BUY := ["Good choice.", "Pleasure.", "That one's useful."]
+const SHOP_BROKE := ["You can't afford that.", "Come back with more.", "Not enough."]
+const SHOP_FULL := ["Your hands are full.", "No room. Use something first."]
+
+# สินบน: โดนไล่ออกแล้วมีเงินพอ boss เสนอให้เล่นวันนั้นใหม่ (ตัวแปร {cost}) — สุ่มหนึ่งบรรทัด
+const BRIBE_OFFER := [
+	"I could forget this happened. For ${cost}.",
+	"Walls have ears. Mine are for sale. ${cost}.",
+	"${cost}, and the day starts over. Between us.",
+]
+const BRIBE_PAID := ["Pleasure doing business.", "Same day. Same quota. Don't waste it."]
+
 # ท้ายวัน — โดนไล่ออก (แยกสาเหตุ)
 const FIRED_FAILS := [
 	"You lost {fails} pieces.",

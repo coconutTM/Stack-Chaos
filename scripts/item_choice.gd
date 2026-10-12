@@ -3,6 +3,7 @@ extends CanvasLayer
 
 # หน้าให้เลือกรางวัลท้ายวัน (เกรด A ขึ้นไป): การ์ด item 3 ใบ เลือกได้ 1 / พิกัด 426x240
 # main.gd: var id := await choice.choose(ids, boss_line) → "" ถ้าถูกตัด (abort)
+# offer() = การ์ดทั่วไปจำนวนกี่ใบก็ได้ (ใช้กับข้อเสนอสินบน) / make_card() ใช้ร่วมกับร้านของ boss (boss_shop.gd)
 
 signal picked(id: String)
 
@@ -12,6 +13,7 @@ const GAP := 8.0
 
 var _title: Label
 var _boss: Label
+var _hint: Label
 var _row: HBoxContainer
 var _open := false
 
@@ -33,18 +35,14 @@ func _ready() -> void:
 	_row = HBoxContainer.new()
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_row.add_theme_constant_override("separation", int(GAP))
-	var width := 3.0 * CARD_W + 2.0 * GAP
 	_row.anchor_left = 0.5
 	_row.anchor_right = 0.5
-	_row.offset_left = -width * 0.5
-	_row.offset_right = width * 0.5
 	_row.offset_top = 76.0
 	_row.offset_bottom = 76.0 + CARD_H
 	add_child(_row)
 
-	var hint := _label(8, 200.0, 10.0)
-	hint.text = "click a card to take it"
-	hint.add_theme_color_override("font_color", Color(0.6, 0.5, 0.15))
+	_hint = _label(8, 200.0, 10.0)
+	_hint.add_theme_color_override("font_color", Color(0.6, 0.5, 0.15))
 	visible = false
 
 
@@ -64,11 +62,28 @@ func _label(size: int, y: float, h: float) -> Label:
 
 # แสดงการ์ดของ item ที่ให้เลือก (ids = id ใน ItemData.ITEMS) แล้วรอจนผู้เล่นเลือก / คืน id ที่เลือก
 func choose(ids: Array, boss_line: String) -> String:
+	var cards: Array = []
+	for id in ids:
+		var data: Dictionary = ItemData.ITEMS[id]
+		cards.append({"id": id, "name": data.name, "desc": data.desc, "color": data.color})
+	return await offer("CHOOSE A REWARD", boss_line, cards, "click a card to take it")
+
+
+# การ์ดทั่วไป: cards = [{"id", "name", "desc", "color", "footer"(ไม่ใส่ก็ได้)}] / คืน id ของใบที่เลือก ("" = ถูกตัดด้วย abort)
+func offer(title: String, boss_line: String, cards: Array, hint: String) -> String:
 	for c in _row.get_children():
 		c.queue_free()
-	for id in ids:
-		_row.add_child(_card(id))
+	for c in cards:
+		var b := make_card(c.name, c.desc, c.color, c.get("footer", ""))
+		var id: String = c.id
+		b.pressed.connect(func() -> void: picked.emit(id))
+		_row.add_child(b)
+	var width := cards.size() * CARD_W + (cards.size() - 1) * GAP
+	_row.offset_left = -width * 0.5
+	_row.offset_right = width * 0.5
+	_title.text = title
 	_boss.text = '"%s"' % boss_line
+	_hint.text = hint
 	_open = true
 	visible = true
 	var id: String = await picked
@@ -77,9 +92,8 @@ func choose(ids: Array, boss_line: String) -> String:
 	return id
 
 
-func _card(id: String) -> Button:
-	var data: Dictionary = ItemData.ITEMS[id]
-	var accent: Color = data.color
+# การ์ดหนึ่งใบ: ชื่อ (สีของ accent) + คำอธิบาย + footer (เช่นราคา ไม่ใส่ = ไม่โชว์) / footer ที่โชว์ดึงด้วย card.get_meta("footer")
+static func make_card(card_name: String, card_desc: String, accent: Color, footer := "") -> Button:
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(CARD_W, CARD_H)
 	b.focus_mode = Control.FOCUS_NONE
@@ -90,10 +104,13 @@ func _card(id: String) -> Button:
 	var hover: StyleBoxFlat = normal.duplicate()
 	hover.bg_color = Color(0.12, 0.12, 0.16)
 	hover.border_color = accent
+	var off: StyleBoxFlat = normal.duplicate()   # ซื้อแล้ว / กดไม่ได้: ทึบและจาง
+	off.bg_color = Color(0.04, 0.04, 0.05)
+	off.border_color = Color(0.2, 0.2, 0.22)
 	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", hover)
-	b.pressed.connect(func() -> void: picked.emit(id))
+	b.add_theme_stylebox_override("disabled", off)
 
 	# ชื่อ (สีของ item) + คำอธิบาย แยก Label กันเพื่อให้มีช่องว่างระหว่างกัน
 	var box := VBoxContainer.new()
@@ -106,14 +123,14 @@ func _card(id: String) -> Button:
 	box.add_theme_constant_override("separation", 8)
 	b.add_child(box)
 	var name_label := Label.new()
-	name_label.text = data.name
+	name_label.text = card_name
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.add_theme_font_size_override("font_size", 8)
 	name_label.add_theme_color_override("font_color", accent)
 	box.add_child(name_label)
 	var desc := Label.new()
-	desc.text = data.desc
+	desc.text = card_desc
 	desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -121,6 +138,15 @@ func _card(id: String) -> Button:
 	desc.add_theme_font_size_override("font_size", 8)
 	desc.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 	box.add_child(desc)
+	var foot := Label.new()
+	foot.text = footer
+	foot.visible = footer != ""
+	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	foot.add_theme_font_size_override("font_size", 8)
+	foot.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	box.add_child(foot)
+	b.set_meta("footer", foot)
 	return b
 
 

@@ -36,6 +36,7 @@ var review: ReviewScreen
 var title_menu: TitleMenu
 var settings_panel: SettingsPanel
 var item_choice: ItemChoice
+var shop: BossShop
 var look: Ps1Look
 var modifiers: DayModifiers
 var screen_fx: ScreenFx
@@ -55,7 +56,9 @@ var _cur_day: Dictionary = GameData.DAYS[0]   # ข้อมูลของว�
 var quota_height := 0.0
 var max_pieces := 0
 var score := 0              # ขยะที่วางสำเร็จตลอดการเล่นรอบนี้ (ข้ามวัน)
-var money := 0              # เงินเดือนสะสมของรอบนี้ (จากหน้าสรุปผลงานท้ายวัน)
+var money := 0              # เงินในกระเป๋า (ได้จากหน้าสรุปผลงานท้ายวัน / ลดเมื่อซื้อของในร้านหรือจ่ายสินบน)
+var earned := 0             # รายได้รวมของรอบนี้ (ไม่ลดเมื่อใช้เงิน ไว้โชว์ TOTAL EARNED ตอนจบ)
+var bribes_used := 0        # จ่ายสินบนไปกี่ครั้งในรอบนี้ (ราคาเพิ่มเป็นสองเท่าทุกครั้ง)
 var trophy_bonus := 0       # โบนัสจาก GOLD TROPHY ที่วางนิ่งได้ในวันนี้ (บวกเข้า money ตอนสรุปผลงาน)
 var failed_attempts := 0    # หลุดกองในวันนี้
 var pieces_used := 0        # ชิ้นที่ spawn ในวันนี้
@@ -107,6 +110,9 @@ func _ready() -> void:
 	item_choice = ItemChoice.new()
 	add_child(item_choice)
 	item_choice.picked.connect(func(id: String) -> void: if id != "": sfx.play("item_get"))
+	shop = BossShop.new()
+	add_child(shop)
+	shop.buy = _shop_buy
 	title_menu = TitleMenu.new()
 	add_child(title_menu)
 	title_menu.play_pressed.connect(_start_run)
@@ -129,6 +135,7 @@ func _ready() -> void:
 	console.register("day", "/day N  start a fresh run at day N (1-%d)" % GameData.DAYS.size(), _debug_day)
 	console.register("overtime", "/overtime [N]  start overtime at shift N (default 1)", _debug_overtime)
 	console.register("give", "/give <item|all>  add items", _debug_give)
+	console.register("money", "/money N  set your cash", _debug_money)
 	add_child(console)
 	pause_menu = PauseMenu.new()
 	pause_menu.can_pause = func() -> bool: return state == State.HOLDING or state == State.WAITING
@@ -316,11 +323,13 @@ func _start_run(is_overtime := false) -> void:
 	day = GameData.DAYS.size() + 1 if is_overtime else 1
 	score = 0
 	money = 0
+	earned = 0
+	bribes_used = 0
 	items.reset_run()
 	_start_day()
 
 
-func _start_day() -> void:
+func _start_day(retry := false) -> void:
 	var flow := _flow_id   # /day ตัดกลางคัน → coroutine นี้เลิกเองหลัง await (ดู _debug_day)
 	state = State.DIALOGUE   # กันคลิกระหว่างจอมืด
 	await screen_fx.cover()   # เปลี่ยนวัน: จอมืด → ล้างกอง/ตั้งค่าวันใหม่ใต้จอดำ → สว่าง
@@ -328,7 +337,8 @@ func _start_day() -> void:
 		return
 	game_over_label.hide()
 	title_menu.close()   # เผื่อเริ่มวันจาก /day หรือ /overtime ตอนอยู่หน้า title (ไม่ผ่านปุ่ม PLAY)
-	var d: Dictionary = GameData.overtime_day(_shift()) if overtime else GameData.DAYS[day - 1]
+	# retry (จ่ายสินบน) = วันเดิมทุกอย่าง ใช้ข้อมูลที่เก็บไว้ (ห้ามเรียก overtime_day() ซ้ำ ตัวปรับสุ่มใหม่)
+	var d: Dictionary = _cur_day if retry else (GameData.overtime_day(_shift()) if overtime else GameData.DAYS[day - 1])
 	_cur_day = d
 	quota_height = d.height
 	max_pieces = d.pieces
@@ -357,6 +367,13 @@ func _start_day() -> void:
 	update_ui()
 	await screen_fx.uncover()
 	if flow != _flow_id:
+		return
+
+	if retry:   # เล่นซ้ำ: ข้ามบทต้นวันและไม่แจก item ประจำวันซ้ำ
+		await dialogue.say(_lines(Dialogue.BRIBE_PAID))
+		if flow != _flow_id:
+			return
+		spawn_block()
 		return
 
 	await dialogue.say(_lines(_intro_lines()))
@@ -401,6 +418,17 @@ func _end_day(passed: bool, reason := "") -> void:
 		await dialogue.say(_lines(fired_lines))
 		if flow != _flow_id:
 			return
+		# มีเงินพอ → boss เสนอสินบน จ่ายแล้วเล่นวันเดิมใหม่ (ราคาเพิ่มเป็นสองเท่าทุกครั้งในรอบเดียวกัน)
+		var cost := GameData.bribe_cost(bribes_used)
+		if money >= cost:
+			var paid: bool = await _offer_bribe(cost)
+			if flow != _flow_id:
+				return
+			if paid:
+				money -= cost
+				bribes_used += 1
+				_start_day(true)
+				return
 		await screen_fx.cover()
 		if flow != _flow_id:
 			return
@@ -411,7 +439,7 @@ func _end_day(passed: bool, reason := "") -> void:
 				Settings.best_overtime = survived
 				Settings.save_all()
 			_show_screen("YOU'RE FIRED!\nSHIFTS SURVIVED: %d\n%s\nTOTAL EARNED: $%d\n\nclick to return to title" % [
-				survived, "NEW RECORD!" if is_record and survived > 0 else "BEST: %d" % Settings.best_overtime, money
+				survived, "NEW RECORD!" if is_record and survived > 0 else "BEST: %d" % Settings.best_overtime, earned
 			])
 		else:
 			_show_screen("YOU'RE FIRED!\nDAY %d\nHEIGHT: %.1f / %.1f m\nLOST: %d PIECES\n\nclick to return to title" % [
@@ -437,6 +465,10 @@ func _end_day(passed: bool, reason := "") -> void:
 			return
 		if picked != "":
 			items.give(picked)
+	if more_days:
+		await _open_shop()
+		if flow != _flow_id:
+			return
 	if not overtime and day >= GameData.DAYS.size():
 		await dialogue.say(_lines(Dialogue.ENDING))
 		if flow != _flow_id:
@@ -446,11 +478,49 @@ func _end_day(passed: bool, reason := "") -> void:
 			return
 		Settings.night_shift = true
 		Settings.save_all()
-		_show_screen("SHIFT COMPLETE\nTRASH STACKED: %d\nTOTAL EARNED: $%d\n\nclick to return to title" % [score, money])
+		_show_screen("SHIFT COMPLETE\nTRASH STACKED: %d\nTOTAL EARNED: $%d\n\nclick to return to title" % [score, earned])
 		state = State.ENDING
 	else:
 		day += 1
 		_start_day()
+
+
+# ร้านของ boss: สุ่มของ SHOP_STOCK ชิ้น เปิดเมื่อเงินพอซื้อชิ้นที่ถูกสุด และคลังยังไม่เต็ม (ไม่งั้นข้ามไปเลย)
+func _open_shop() -> void:
+	var stock := ItemData.roll_distinct(ItemData.SHOP_STOCK)
+	var cheapest := 1 << 30
+	for id in stock:
+		cheapest = mini(cheapest, int(ItemData.ITEMS[id].price))
+	if money < cheapest or items.inventory.size() >= ItemData.MAX_SLOTS:
+		return
+	await shop.open(stock, money, Dialogue.SHOP_OPEN.pick_random())
+
+
+# ซื้อของในร้าน (BossShop เรียกตอนกดการ์ด) / main เป็นเจ้าของเงินและคลัง ร้านแค่แสดงผลที่ได้กลับไป
+func _shop_buy(id: String) -> Dictionary:
+	var price := int(ItemData.ITEMS[id].price)
+	if items.inventory.size() >= ItemData.MAX_SLOTS:
+		sfx.play("deny")
+		return {"ok": false, "cash": money, "line": Dialogue.SHOP_FULL.pick_random()}
+	if money < price:
+		sfx.play("deny")
+		return {"ok": false, "cash": money, "line": Dialogue.SHOP_BROKE.pick_random()}
+	money -= price
+	items.give(id)
+	sfx.play("item_get")
+	return {"ok": true, "cash": money, "line": Dialogue.SHOP_BUY.pick_random()}
+
+
+# ข้อเสนอสินบนตอนโดนไล่ออก / คืน true = ผู้เล่นเลือกจ่าย (main หักเงินและเริ่มวันใหม่เอง)
+func _offer_bribe(cost: int) -> bool:
+	var cards := [
+		{"id": "pay", "name": "PAY $%d" % cost, "desc": "Keep your job and replay this day.",
+			"color": Color(0.5, 0.85, 0.5), "footer": "CASH: $%d" % money},
+		{"id": "leave", "name": "WALK AWAY", "desc": "Take the firing.", "color": Color(0.85, 0.35, 0.3)},
+	]
+	var line: String = _lines([Dialogue.BRIBE_OFFER.pick_random()], {"cost": cost})[0]
+	var pick: String = await item_choice.offer("A QUIET WORD", line, cards, "click a card")
+	return pick == "pay"
 
 
 # หน้าสรุปผลงานท้ายวัน: เกรดจากชิ้นที่เสีย/ที่เหลือ → ค่าแรง (บวกเข้า money) / จดเกรดดีสุดของวัน
@@ -460,11 +530,12 @@ func _show_review() -> int:
 	var info: Dictionary = GameData.GRADES[grade]
 	var wage := GameData.wage_for(day, grade, spare)
 	money += wage + trophy_bonus
+	earned += wage + trophy_bonus
 	var rows: Array = [["PIECES LEFT", str(spare)], ["PIECES LOST", str(failed_attempts)]]
 	if trophy_bonus > 0:
 		rows.append(["TROPHY BONUS", "+$%d" % trophy_bonus])
 	rows.append(["WAGE", "$%d" % wage])
-	rows.append(["TOTAL", "$%d" % money])
+	rows.append(["CASH", "$%d" % money])
 	var new_best := false
 	if not overtime:   # OVERTIME ไม่จดเกรดรายวัน (ใช้สถิติจำนวนกะแทน)
 		var had_record: bool = Settings.best_grades[day - 1] != -1
@@ -558,6 +629,7 @@ func _debug_day(args: PackedStringArray) -> String:
 	dialogue.abort()
 	review.abort()
 	item_choice.abort()
+	shop.abort()
 	screen_fx.clear(0.01)   # เผื่อกำลังอยู่ในฉากจบ (จอมืด + ตา)
 	sfx.set_loop("ambient", true, -10.0)
 	_reset_time()
@@ -565,6 +637,8 @@ func _debug_day(args: PackedStringArray) -> String:
 	day = n
 	score = 0
 	money = 0
+	earned = 0
+	bribes_used = 0
 	items.reset_run()
 	_start_day()
 	return "Starting day %d" % n
@@ -579,6 +653,7 @@ func _debug_overtime(args: PackedStringArray) -> String:
 	dialogue.abort()
 	review.abort()
 	item_choice.abort()
+	shop.abort()
 	screen_fx.clear(0.01)
 	sfx.set_loop("ambient", true, -10.0)
 	_reset_time()
@@ -586,9 +661,19 @@ func _debug_overtime(args: PackedStringArray) -> String:
 	day = GameData.DAYS.size() + n
 	score = 0
 	money = 0
+	earned = 0
+	bribes_used = 0
 	items.reset_run()
 	_start_day()
 	return "Starting overtime shift %d" % n
+
+
+# /money N — ตั้งเงินในกระเป๋า (ไว้ทดสอบร้านของ boss / สินบน)
+func _debug_money(args: PackedStringArray) -> String:
+	if args.is_empty() or not args[0].is_valid_int():
+		return "Usage: /money N"
+	money = maxi(args[0].to_int(), 0)
+	return "Cash: $%d" % money
 
 
 # /give <item|all> — ใส่ item เข้าคลัง (เต็ม MAX_SLOTS แล้วหยุด)

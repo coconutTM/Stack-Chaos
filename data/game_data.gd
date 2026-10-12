@@ -49,6 +49,7 @@ const TROPHY_BONUS := 100      # โบนัสเงินเมื่อ GOLD
 const WAGE_BASE := 100        # ค่าแรงวันที่ 1
 const WAGE_PER_DAY := 25      # ค่าแรงเพิ่มต่อวัน
 const WAGE_PER_SPARE := 20    # เงินพิเศษต่อชิ้นที่เหลือ
+const BRIBE_BASE := 250        # สินบนครั้งแรกของรอบ (โดนไล่ออกแล้วจ่ายเพื่อเล่นวันนั้นใหม่) / ครั้งต่อไปคูณสอง
 
 
 # คืน index ใน GRADES (0 = ดีสุด)
@@ -58,6 +59,11 @@ static func grade_for(fails: int, spare: int) -> int:
 		if fails <= int(g.max_fails) and spare >= int(g.min_spare):
 			return i
 	return GRADES.size() - 1
+
+
+# ราคาสินบนครั้งที่ used + 1 ของรอบ (250 → 500 → 1000 ...)
+static func bribe_cost(used: int) -> int:
+	return BRIBE_BASE * (1 << used)
 
 
 # เงินเดือนของวันนั้น = ค่าแรงตามวัน + ชิ้นที่เหลือ + โบนัสเกรด
