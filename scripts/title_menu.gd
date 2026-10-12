@@ -27,8 +27,9 @@ const CREDITS_LINES := [
 const HOW_TO_LINES := [
 	"Mouse: move the piece",
 	"Left click: drop it",
-	"Right click: flip it on its side",
-	"Mouse wheel: spin it 45 degrees",
+	"Right click: spin it 45 degrees",
+	"Shift + right click: flip it",
+	"Mouse wheel: zoom",
 	"Right drag: look around the pile",
 	"P / Esc: pause",
 	"",

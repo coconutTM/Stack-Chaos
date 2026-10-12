@@ -9,7 +9,7 @@ const DAY_INTRO := {
 	1: [
 		"You're the new hire. Good. Sit.",
 		"That's your crane. Move the mouse to carry the trash. Left click to drop it.",
-		"Right click flips a piece on its side. Scroll the wheel to spin it.",
+		"Right click spins a piece. Shift and right click flips it on its side. Scroll the wheel to zoom.",
 		"Hold right click and drag to look around the pile.",
 		"The white circle shows where it will land. A red circle means it's headed off the platform.",
 		"Stack to {quota} meters with {pieces} pieces. Every piece must land on the pile.",

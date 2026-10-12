@@ -343,10 +343,12 @@ benchmark (กองทรงกล่อง 16 ชิ้น เล็งกล�
 
 - `scripts/orbit_camera.gd` (`OrbitCamera`, ติดกับ `Camera3D` ใน `main.tscn`) — กล้องโคจร: `yaw`,
   `target_y` (main ตั้งเป็น `tower_top`), `dragging`, signal `tapped` (คลิกขวาสั้น) / ค่า `RADIUS`,
-  `HEIGHT`, `DRAG_THRESHOLD`, `DRAG_SENS` เป็น const บนสุดของไฟล์
-- `scripts/crane.gd` (`Crane`) — เครนทาวเวอร์จาก primitive สร้างด้วยโค้ดใน `_ready()` / หมุนตาม
-  `camera.yaw` (เสาอยู่ฝั่งตรงข้ามกล้อง) แขนเล็งไปที่ชิ้นที่ถือ trolley/สาย/ตะขอตามตำแหน่ง / main เรียก
-  `update_crane(yaw, held, hold_y, delta)` ทุกเฟรม
+  `HEIGHT`, `DRAG_THRESHOLD`, `DRAG_SENS` เป็น const บนสุดของไฟล์ / **ซูม:** ลูกกลิ้ง (เฉพาะเมื่อ `can_zoom` = HOLDING/WAITING, main ตั้งทุกเฟรม)
+  ปรับ `zoom` (`ZOOM_MIN`–`ZOOM_MAX`) คูณ `RADIUS`/`HEIGHT` แบบลื่น (`_zoom`) / รัศมีถูกจำกัดที่ `MAX_RADIUS` (= `Crane.MAST_DIST` - 1 ไม่ให้ทะลุเสาเครน) ซูมออกเกินนั้นกล้องยกสูงขึ้นแทน / main รีเซ็ต `zoom = 1.0` ใน `_show_title()`
+- `scripts/crane.gd` (`Crane`) — เครนทาวเวอร์จาก primitive สร้างด้วยโค้ดใน `_ready()` / **ยืนอยู่กับที่ ไม่หมุนตามกล้อง**
+  (`CRANE_YAW` ทิศที่ตั้ง, เสาอยู่ห่างกอง `MAST_DIST` 10.8 นอกวงกล้องโคจร, แขน `JIB_FRONT` 15.5 ยื่นข้ามกอง, `JIB_ABOVE_HOLD` 6.5 สูงกว่ากล้องตอนซูมปกติ แขนจะได้ไม่พาดบังจอ)
+  แขนเล็งไปที่ชิ้นที่ถือ trolley/สาย/ตะขอตามตำแหน่ง / main เรียก `update_crane(held, hold_y, delta)` ทุกเฟรม
+  **ถ้าแก้ `MAST_DIST` / `RADIUS` ต้องเช็คว่ากล้องไม่ทะลุเสา (`OrbitCamera.MAX_RADIUS`) และเสาไม่ชนของประดับ (`Junkyard.CLEAR_RADIUS` 11)**
 - `scripts/drop_guide.gd` (`DropGuide`) — ray ลงใต้ชิ้นที่ถือ วาดวงเงา + เส้นดิ่ง (แดง = ไม่มีอะไรรองรับ
   จะตกลงลานนอกแท่น `pad_top`) / main ตั้ง `guide.target` ทุกเฟรม
 - `scripts/quota_marker.gd` (`QuotaMarker`) — กรอบเรืองแสงรอบแท่นที่ความสูงโควต้า + ป้าย `QUOTA x m` (Label3D ฟอนต์ pixel อยู่ขอบฝั่งตรงข้ามกล้อง)
@@ -383,9 +385,11 @@ Main (Node3D)                ← scripts/main.gd
 | ขยับเมาส์ | เลื่อนตำแหน่งบล็อกที่ถืออยู่ |
 | คลิกซ้ายที่ช่องบนแถบ item | ใช้ item นั้น (ตอนถือบล็อกอยู่) |
 | คลิกซ้าย | ปล่อยบล็อก / ข้ามการพิมพ์และไปบรรทัดถัดไปตอน boss พูด / กดต่อบนหน้า title, fired, ending |
-| คลิกขวา (สั้น ไม่ลาก) | พลิกตะแคง 90° รอบแกน Z |
+| คลิกขวา (สั้น ไม่ลาก) | หมุนชิ้นที่ถือ 45° รอบแกน Y (`_spin_held`) |
+| Shift + คลิกขวา / คลิกกลาง | พลิกตะแคง 90° รอบแกนแนวราบที่ชี้ออกจากกล้อง (`_flip_held` เอียงไปทางขวาของจอทุกมุมกล้อง) |
+| Q / E / R | หมุน -45° / +45° / พลิกตะแคง (คีย์สำรอง ใช้ `physical_keycode`) |
 | คลิกขวาค้าง + ลาก | หมุนกล้องรอบกอง 360° (ชิ้นที่ถือจะไม่ตามเมาส์ระหว่างลาก) |
-| ลูกกลิ้งขึ้น / ลง | หมุน ±45° รอบแกน Y |
+| ลูกกลิ้งขึ้น / ลง | ซูมกล้องเข้า / ออก (`OrbitCamera.zoom`) |
 | Esc / P หรือปุ่ม PAUSE มุมขวาบน | หยุดเกม / เล่นต่อ (เฉพาะตอนถือหรือรอชิ้นนิ่ง) |
 
 ---
@@ -430,6 +434,9 @@ Main (Node3D)                ← scripts/main.gd
 
 ## 7. Gotchas
 
+0b. **ทิศของชิ้นที่ถือต้องเก็บใน `main._hold_basis` แล้วตั้งทั้ง `global_transform` ใน `move_held_block()`** — หมุนชิ้นด้วย `rotate_y()` ตรงๆ
+   แล้วตั้งแค่ `global_position` ทุกเฟรม ทิศจะถูกทับกลับเป็นเดิมภายใน 1 เฟรม (Jolt + freeze kinematic) / `_spin_held()` / `_flip_held()` แก้ `_hold_basis`,
+   `_make_current()` รีเซ็ต
 0a. **ห้ามเชื่อ velocity ของบล็อกที่เพิ่งปล่อยจากการถือ** — ตอนถือ (kinematic) Jolt คำนวณความเร็วจากการขยับตำแหน่ง ถ้าปล่อยทันที
    (เมาส์สะบัดหรือเทเลพอร์ต) ชิ้นจะพุ่ง 70–160 m/s `Block.release()` จึงล้างความเร็วซ้ำ 3 ครั้ง (ทันที + 2 physics frame)
    / ตั้งตำแหน่งชิ้นใหม่ก่อน `add_child` เสมอ

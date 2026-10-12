@@ -26,6 +26,7 @@ const TITLE_PILE := [
 @onready var ground: CSGBox3D = $Ground
 
 var crane: Crane
+var _hold_basis := Basis.IDENTITY   # ทิศของชิ้นที่ถือ (main เป็นเจ้าของ: move_held_block() ตั้งทับทุกเฟรม ไม่งั้นการหมุนหาย)
 var guide: DropGuide
 var quota_marker: QuotaMarker
 var dialogue: DialogueBox
@@ -164,6 +165,7 @@ func _process(delta: float) -> void:
 	if state == State.TITLE:
 		camera.yaw += TITLE_SPIN * delta   # หน้า title: กล้องวนรอบกองตัวอย่างช้าๆ
 	camera.target_y = tower_top
+	camera.can_zoom = state == State.HOLDING or state == State.WAITING
 	look.target_y = tower_top
 	modifiers.running = state == State.HOLDING or state == State.WAITING
 	modifiers.follow_y = tower_top
@@ -174,7 +176,7 @@ func _process(delta: float) -> void:
 	if holding and not camera.dragging:
 		move_held_block()
 
-	crane.update_crane(camera.yaw, current if holding else null, tower_top + HOLD_GAP, delta)
+	crane.update_crane(current if holding else null, tower_top + HOLD_GAP, delta)
 	_update_motor(holding, delta)
 	guide.target = current if holding else null
 	# มีกองแล้ว (มีชิ้นนิ่ง) → วงนำทางจะเตือนสีแดงถ้าจุดตกคือพื้น
@@ -247,6 +249,18 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# คีย์สำรองหมุน/พลิกชิ้นที่ถือ (physical_keycode ใช้ได้แม้ตั้งคีย์บอร์ดภาษาไทย)
+	if event is InputEventKey and event.pressed and not event.echo:
+		if state == State.HOLDING:
+			match event.physical_keycode:
+				KEY_Q:
+					_spin_held(-45.0)
+				KEY_E:
+					_spin_held(45.0)
+				KEY_R:
+					_flip_held()
+		return
+
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 
@@ -267,16 +281,31 @@ func _unhandled_input(event: InputEvent) -> void:
 					if _is_tutorial() and not _first_drop_said:
 						_first_drop_said = true
 						_comment("tutorial_drop")
-				MOUSE_BUTTON_WHEEL_UP:    # ลูกกลิ้ง = หมุน 45°
-					current.rotate_y(deg_to_rad(45))
-				MOUSE_BUTTON_WHEEL_DOWN:
-					current.rotate_y(deg_to_rad(-45))
+				MOUSE_BUTTON_MIDDLE:      # คลิกกลาง = พลิกตะแคง (ลูกกลิ้งใช้ซูมกล้องใน orbit_camera.gd)
+					_flip_held()
 
 
-# คลิกขวาสั้นๆ (ไม่ลาก) = พลิกชิ้นที่ถือตะแคง 90° / ลากค้าง = หมุนกล้อง (orbit_camera.gd)
+# คลิกขวาสั้นๆ (ไม่ลาก) = หมุนชิ้นที่ถือ 45° / Shift + คลิกขวา = พลิกตะแคง / ลากค้าง = หมุนกล้อง (orbit_camera.gd)
 func _on_camera_tapped() -> void:
-	if state == State.HOLDING:
-		current.rotate_z(deg_to_rad(90))
+	if state != State.HOLDING:
+		return
+	if Input.is_key_pressed(KEY_SHIFT):
+		_flip_held()
+	else:
+		_spin_held(45.0)
+
+
+# หมุนชิ้นที่ถือรอบแกนตั้ง
+func _spin_held(deg: float) -> void:
+	_hold_basis = Basis(Vector3.UP, deg_to_rad(deg)) * _hold_basis
+	sfx.play("ui_click", -10.0, randf_range(0.9, 1.1))
+
+
+# พลิกชิ้นที่ถือตะแคง 90° รอบแกนแนวราบที่ชี้ออกจากกล้อง (เอียงไปทางขวาของจอเสมอ ไม่ว่ากล้องหมุนไปมุมไหน)
+func _flip_held() -> void:
+	var away := Vector3(-sin(camera.yaw), 0.0, -cos(camera.yaw))
+	_hold_basis = Basis(away, deg_to_rad(90)) * _hold_basis
+	sfx.play("ui_click", -10.0, randf_range(0.9, 1.1))
 
 
 # ---------- วัน / รอบการเล่น ----------
@@ -485,6 +514,7 @@ func _show_title() -> void:
 		b.queue_free()
 	current = null
 	tower_top = TITLE_PILE_TOP
+	camera.zoom = 1.0   # หน้า title ใช้มุมกล้องมาตรฐานเสมอ
 	score_label.hide()
 	game_over_label.hide()
 	title_menu.open()
@@ -670,6 +700,7 @@ func _make_current(pos: Vector3) -> void:
 	current = Block.spawn(kind)
 	current.position = pos
 	blocks_root.add_child(current)
+	_hold_basis = Basis.IDENTITY
 	current.hit.connect(_on_hit.bind(current))
 	sfx.play("clunk", -6.0)
 	if current.fragile and not _fragile_said:
@@ -738,11 +769,12 @@ func move_held_block() -> void:
 	if hit == null:
 		return
 	var p: Vector3 = hit
-	current.global_position = Vector3(
+	# ตั้งทั้ง transform (ทิศ + ตำแหน่ง) ไม่ใช่แค่ global_position ไม่งั้นทิศที่หมุนไว้ถูกทับกลับเป็นเดิมทุกเฟรม
+	current.global_transform = Transform3D(_hold_basis, Vector3(
 		clampf(p.x, -BOUND, BOUND),
 		hold_y,
 		clampf(p.z, -BOUND, BOUND)
-	)
+	))
 
 
 func recalc_tower_top() -> void:

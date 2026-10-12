@@ -2,14 +2,15 @@ class_name Crane
 extends Node3D
 
 # เครนทาวเวอร์ประกอบจาก primitive ล้วน (สร้างด้วยโค้ด)
-# - ทั้งเครนหมุนตามมุมกล้อง: เสาอยู่ฝั่งตรงข้ามกล้องเสมอ แขนยื่นข้ามกองมาทางกล้อง
+# - เครนยืนอยู่กับที่ในโลก (ไม่หมุนตามกล้อง) เสาอยู่นอกวงที่กล้องโคจร แขนยื่นข้ามกอง
 # - แขนเล็งไปทางชิ้นที่ถือ, trolley เลื่อนตามระยะ, สายเคเบิลยืดหดตามความสูง
 
-const MAST_DIST := 5.4        # เสาห่างศูนย์กลางกองเท่านี้ (ฝั่งตรงข้ามกล้อง)
+const MAST_DIST := 10.8       # เสาห่างศูนย์กลางกองเท่านี้ (นอกวงกล้องโคจร รัศมี 9.5 และขอบ CLEAR_RADIUS ของประดับ)
+const CRANE_YAW := 0.61       # ทิศที่เครนตั้งอยู่ (เรเดียน ≈ 35°) หมุนรอบศูนย์กลางกอง
 const MAST_BOTTOM := Junkyard.FLOOR_Y   # เสายืนบนพื้นลาน (นอกแท่นวาง)
-const JIB_ABOVE_HOLD := 3.0   # แขนเครนอยู่เหนือชิ้นที่ถือเท่านี้
+const JIB_ABOVE_HOLD := 6.5   # แขนเครนอยู่เหนือชิ้นที่ถือเท่านี้ (สูงกว่ากล้อง 5.5 ตอนซูมปกติ แขนจึงไม่พาดบังจอ)
 const JIB_BACK := 2.5         # แขนยื่นไปด้านหลังเสา (ฝั่ง counterweight)
-const JIB_FRONT := 11.5       # แขนยื่นไปด้านหน้า
+const JIB_FRONT := 15.5       # แขนยื่นไปด้านหน้า (ต้องเกิน MAST_DIST + BOUND ถึงจะเอื้อมถึงขอบแท่นฝั่งไกล)
 const IDLE_HOOK_LEN := 1.0    # ความยาวสายตอนไม่ได้ถืออะไร
 const FOLLOW := 3.0           # ความเร็วยกแขนตามกอง
 const HOOK_FOLLOW := 10.0     # ความเร็วหย่อน/ดึงตะขอ
@@ -28,6 +29,7 @@ var _hook: Node3D
 
 
 func _ready() -> void:
+	rotation.y = CRANE_YAW
 	var yellow := _mat(Color(0.85, 0.65, 0.1))
 	var dark := _mat(Color(0.2, 0.22, 0.26))
 	var glass := _mat(Color(0.5, 0.8, 0.9))
@@ -66,9 +68,7 @@ func _ready() -> void:
 
 
 # เรียกทุกเฟรมจาก main.gd / held = ชิ้นที่ถืออยู่ (null = ไม่ได้ถือ ตะขอจะยกขึ้นและ trolley อยู่ที่เดิม)
-func update_crane(yaw: float, held: Block, hold_y: float, delta: float) -> void:
-	rotation.y = yaw
-
+func update_crane(held: Block, hold_y: float, delta: float) -> void:
 	var target_jib := hold_y + JIB_ABOVE_HOLD
 	_jib_y = target_jib if not _inited else lerpf(_jib_y, target_jib, 1.0 - exp(-FOLLOW * delta))
 
