@@ -11,6 +11,7 @@ static var camera_sens := 1.0     # ความไวตอนลากหม�
 static var retro_look := true     # true = dither + vertex snapping แบบ PS1 / false = ปิด (เครื่องช้า/เว็บ) ภาพคมขึ้นและเบาลง
 static var night_shift := false   # เคยจบเกมครบ 5 วันแล้ว (ตอน title/บทพูดวันแรกเปลี่ยนไปนิดหน่อย)
 static var best_overtime := 0       # กะ OVERTIME ที่ผ่านได้มากสุดในรอบเดียว
+static var endings_seen: Array = []   # id ฉากจบที่เคยดู ("boss", "corrupt")
 static var best_grades: Array = [-1, -1, -1, -1, -1]   # เกรดดีสุดของแต่ละวัน (index ใน GameData.GRADES, 0 = S, -1 = ยังไม่เคยผ่าน)
 
 
@@ -24,6 +25,11 @@ static func load_all() -> void:
 	retro_look = bool(cfg.get_value("graphics", "retro_look", true))
 	night_shift = cfg.get_value("progress", "night_shift", false)
 	best_overtime = cfg.get_value("progress", "best_overtime", 0)
+	var seen: Variant = cfg.get_value("progress", "endings_seen", [])
+	if seen is Array:
+		endings_seen = seen
+	if night_shift and not endings_seen.has("boss"):
+		endings_seen.append("boss")   # เซฟเก่าก่อนมีรายการฉากจบ: เคยจบแล้ว = ดูฉากหลักแล้ว
 	var saved: Variant = cfg.get_value("progress", "best_grades", best_grades)
 	if saved is Array and saved.size() == best_grades.size():
 		best_grades = saved
@@ -38,6 +44,7 @@ static func save_all() -> void:
 	cfg.set_value("progress", "night_shift", night_shift)
 	cfg.set_value("progress", "best_grades", best_grades)
 	cfg.set_value("progress", "best_overtime", best_overtime)
+	cfg.set_value("progress", "endings_seen", endings_seen)
 	cfg.save(PATH)
 
 
@@ -45,6 +52,13 @@ static func save_all() -> void:
 static func apply_audio() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(volume, 0.0001)))
 	AudioServer.set_bus_mute(0, muted)
+
+
+# จดว่าเคยดูฉากจบนี้แล้ว (บันทึกทันที)
+static func record_ending(id: String) -> void:
+	if not endings_seen.has(id):
+		endings_seen.append(id)
+	save_all()
 
 
 # จดเกรดของวันนั้นถ้าดีกว่าที่เคยได้ / คืน true ถ้าเป็นสถิติใหม่

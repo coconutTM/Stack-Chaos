@@ -16,6 +16,8 @@ const COMMENT_LEFT := 118.0   # โหมดคอมเมนต์เริ่
 const FONT_SIZE := 8   # ฟอนต์ pixel คมสุดที่พหุคูณของ 8 (ดู GameTheme)
 const EYE_COLOR := Color(1.0, 0.85, 0.2)
 
+var eye_color := EYE_COLOR   # สีตา boss (main เปลี่ยนตามความระแวง)
+
 var _panel: Control
 var _label: Label
 var _hint: Label
@@ -217,6 +219,10 @@ func _set_portrait(mode: String) -> void:
 
 
 # ตากะพริบเป็นครั้งคราว และเรืองแรงขึ้นตอนกำลังพูด
+func set_eye_color(c: Color) -> void:
+	eye_color = c
+
+
 func _animate_eyes(delta: float) -> void:
 	_blink_in -= delta
 	if _blink_in <= 0.0:
@@ -229,9 +235,9 @@ func _animate_eyes(delta: float) -> void:
 	for i in _eyes.size():
 		_eyes[i].visible = open
 		_glows[i].visible = open
-		_eyes[i].color = EYE_COLOR * energy
+		_eyes[i].color = eye_color * energy
 		_eyes[i].color.a = 1.0
-		_glows[i].color = Color(EYE_COLOR, 0.25 * energy)
+		_glows[i].color = Color(eye_color, 0.25 * energy)
 
 
 # เงาร่างบอส: หัว + หมวก + ไหล่ สีดำสนิทบนฉากหลังเทาเข้ม มีตาเหลืองสองดวง

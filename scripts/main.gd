@@ -59,6 +59,10 @@ var score := 0              # ขยะที่วางสำเร็จต�
 var money := 0              # เงินในกระเป๋า (ได้จากหน้าสรุปผลงานท้ายวัน / ลดเมื่อซื้อของในร้านหรือจ่ายสินบน)
 var earned := 0             # รายได้รวมของรอบนี้ (ไม่ลดเมื่อใช้เงิน ไว้โชว์ TOTAL EARNED ตอนจบ)
 var bribes_used := 0        # จ่ายสินบนไปกี่ครั้งในรอบนี้ (ราคาเพิ่มเป็นสองเท่าทุกครั้ง)
+var bribe_paid_total := 0   # เงินสินบนรวมของรอบนี้ (ฉากจบพิเศษ)
+var suspicion := 0          # ความระแวงของ boss 0-100 (ดู GameData.SUSPICION_*) / ตา boss เปลี่ยนสีตามระดับ
+var _bribed_today := false  # จ่ายสินบนในวันนี้แล้ว (วันที่ไม่ติดสินบน ความระแวงลดลง)
+var _audit_today := false   # วันนี้โดนตรวจ = boss ไม่รับสินบน
 var trophy_bonus := 0       # โบนัสจาก GOLD TROPHY ที่วางนิ่งได้ในวันนี้ (บวกเข้า money ตอนสรุปผลงาน)
 var failed_attempts := 0    # หลุดกองในวันนี้
 var pieces_used := 0        # ชิ้นที่ spawn ในวันนี้
@@ -113,6 +117,7 @@ func _ready() -> void:
 	shop = BossShop.new()
 	add_child(shop)
 	shop.buy = _shop_buy
+	shop.sell = _shop_sell
 	title_menu = TitleMenu.new()
 	add_child(title_menu)
 	title_menu.play_pressed.connect(_start_run)
@@ -136,6 +141,8 @@ func _ready() -> void:
 	console.register("overtime", "/overtime [N]  start overtime at shift N (default 1)", _debug_overtime)
 	console.register("give", "/give <item|all>  add items", _debug_give)
 	console.register("money", "/money N  set your cash", _debug_money)
+	console.register("ending", "/ending corrupt|boss  play an ending now", _debug_ending)
+	console.register("suspicion", "/suspicion N  set boss suspicion (0-%d, audit at %d)" % [100, GameData.SUSPICION_AUDIT], _debug_suspicion)
 	add_child(console)
 	pause_menu = PauseMenu.new()
 	pause_menu.can_pause = func() -> bool: return state == State.HOLDING or state == State.WAITING
@@ -325,6 +332,8 @@ func _start_run(is_overtime := false) -> void:
 	money = 0
 	earned = 0
 	bribes_used = 0
+	bribe_paid_total = 0
+	_set_suspicion(0)
 	items.reset_run()
 	_start_day()
 
@@ -338,6 +347,9 @@ func _start_day(retry := false) -> void:
 	game_over_label.hide()
 	title_menu.close()   # เผื่อเริ่มวันจาก /day หรือ /overtime ตอนอยู่หน้า title (ไม่ผ่านปุ่ม PLAY)
 	# retry (จ่ายสินบน) = วันเดิมทุกอย่าง ใช้ข้อมูลที่เก็บไว้ (ห้ามเรียก overtime_day() ซ้ำ ตัวปรับสุ่มใหม่)
+	if not retry:
+		_bribed_today = false
+		_audit_today = false
 	var d: Dictionary = _cur_day if retry else (GameData.overtime_day(_shift()) if overtime else GameData.DAYS[day - 1])
 	_cur_day = d
 	quota_height = d.height
@@ -376,6 +388,18 @@ func _start_day(retry := false) -> void:
 		spawn_block()
 		return
 
+	# ความระแวงถึงขีด: boss ตรวจ ยึดเงินครึ่งหนึ่ง และวันนี้ไม่รับสินบน
+	if suspicion >= GameData.SUSPICION_AUDIT:
+		var kept := int(money * GameData.AUDIT_KEEP)
+		var taken := money - kept
+		money = kept
+		_audit_today = true
+		_set_suspicion(GameData.AUDIT_RESET)
+		sfx.play("warn")
+		await dialogue.say(_lines(Dialogue.AUDIT, {"taken": taken}))
+		if flow != _flow_id:
+			return
+
 	await dialogue.say(_lines(_intro_lines()))
 	if flow != _flow_id:
 		return
@@ -394,6 +418,8 @@ func _start_day(retry := false) -> void:
 		if flow != _flow_id:
 			return
 	spawn_block()
+	if GameData.suspicion_level(suspicion) == 2:
+		_comment("suspicious")
 
 
 # จบวัน: ผ่าน → boss พูด → วันต่อไป (หรือฉากจบ) / ไม่ผ่าน → โดนไล่ออก
@@ -420,13 +446,20 @@ func _end_day(passed: bool, reason := "") -> void:
 			return
 		# มีเงินพอ → boss เสนอสินบน จ่ายแล้วเล่นวันเดิมใหม่ (ราคาเพิ่มเป็นสองเท่าทุกครั้งในรอบเดียวกัน)
 		var cost := GameData.bribe_cost(bribes_used)
-		if money >= cost:
+		if money >= cost and _audit_today:
+			await dialogue.say(_lines(Dialogue.BRIBE_REFUSED))   # โดนตรวจวันนี้ ไม่รับสินบน
+			if flow != _flow_id:
+				return
+		elif money >= cost:
 			var paid: bool = await _offer_bribe(cost)
 			if flow != _flow_id:
 				return
 			if paid:
 				money -= cost
 				bribes_used += 1
+				bribe_paid_total += cost
+				_bribed_today = true
+				_set_suspicion(suspicion + GameData.SUSPICION_PER_BRIBE)
 				_start_day(true)
 				return
 		await screen_fx.cover()
@@ -449,6 +482,8 @@ func _end_day(passed: bool, reason := "") -> void:
 		screen_fx.uncover()
 		return
 
+	if not _bribed_today:
+		_set_suspicion(suspicion - GameData.SUSPICION_DECAY)   # วันที่ไม่ติดสินบน boss คลายระแวง
 	sfx.play("pass")
 	var pass_lines: Array = Dialogue.OVERTIME_PASS.pick_random() if overtime else Dialogue.DAY_PASS[day]
 	await dialogue.say(_lines(pass_lines))
@@ -470,30 +505,22 @@ func _end_day(passed: bool, reason := "") -> void:
 		if flow != _flow_id:
 			return
 	if not overtime and day >= GameData.DAYS.size():
-		await dialogue.say(_lines(Dialogue.ENDING))
-		if flow != _flow_id:
-			return
-		await _ending_cinematic()
-		if flow != _flow_id:
-			return
-		Settings.night_shift = true
-		Settings.save_all()
-		_show_screen("SHIFT COMPLETE\nTRASH STACKED: %d\nTOTAL EARNED: $%d\n\nclick to return to title" % [score, earned])
-		state = State.ENDING
+		await _play_ending(bribes_used >= GameData.CORRUPT_ENDING_BRIBES, flow)
 	else:
 		day += 1
 		_start_day()
 
 
-# ร้านของ boss: สุ่มของ SHOP_STOCK ชิ้น เปิดเมื่อเงินพอซื้อชิ้นที่ถูกสุด และคลังยังไม่เต็ม (ไม่งั้นข้ามไปเลย)
+# ร้านของ boss: สุ่มของ SHOP_STOCK ชิ้น เปิดเมื่อเงินพอซื้อชิ้นที่ถูกสุด หรือมี item ในคลังให้ขายคืน (ไม่งั้นข้ามไปเลย)
 func _open_shop() -> void:
 	var stock := ItemData.roll_distinct(ItemData.SHOP_STOCK)
 	var cheapest := 1 << 30
 	for id in stock:
 		cheapest = mini(cheapest, int(ItemData.ITEMS[id].price))
-	if money < cheapest or items.inventory.size() >= ItemData.MAX_SLOTS:
+	var can_buy := money >= cheapest and items.inventory.size() < ItemData.MAX_SLOTS
+	if not can_buy and items.inventory.is_empty():
 		return
-	await shop.open(stock, money, Dialogue.SHOP_OPEN.pick_random())
+	await shop.open(stock, money, Dialogue.SHOP_OPEN.pick_random(), items.inventory.duplicate())
 
 
 # ซื้อของในร้าน (BossShop เรียกตอนกดการ์ด) / main เป็นเจ้าของเงินและคลัง ร้านแค่แสดงผลที่ได้กลับไป
@@ -501,14 +528,30 @@ func _shop_buy(id: String) -> Dictionary:
 	var price := int(ItemData.ITEMS[id].price)
 	if items.inventory.size() >= ItemData.MAX_SLOTS:
 		sfx.play("deny")
-		return {"ok": false, "cash": money, "line": Dialogue.SHOP_FULL.pick_random()}
+		return _shop_result(false, Dialogue.SHOP_FULL)
 	if money < price:
 		sfx.play("deny")
-		return {"ok": false, "cash": money, "line": Dialogue.SHOP_BROKE.pick_random()}
+		return _shop_result(false, Dialogue.SHOP_BROKE)
 	money -= price
 	items.give(id)
 	sfx.play("item_get")
-	return {"ok": true, "cash": money, "line": Dialogue.SHOP_BUY.pick_random()}
+	return _shop_result(true, Dialogue.SHOP_BUY)
+
+
+# ขาย item ช่องที่ index คืน boss (BossShop เรียกตอนกดช่องคลัง) ได้เงิน ItemData.sell_price()
+func _shop_sell(index: int) -> Dictionary:
+	if index < 0 or index >= items.inventory.size():
+		return _shop_result(false, Dialogue.SHOP_BROKE)
+	money += ItemData.sell_price(items.inventory[index])
+	items.inventory.remove_at(index)
+	items.changed.emit()
+	sfx.play("ui_click")
+	return _shop_result(true, Dialogue.SHOP_SELL)
+
+
+# ผลที่ส่งกลับ BossShop (เงิน + บทพูดสุ่ม + คลังล่าสุด ให้ร้านวาดแถวคลังใหม่)
+func _shop_result(ok: bool, lines: Array) -> Dictionary:
+	return {"ok": ok, "cash": money, "line": lines.pick_random(), "inventory": items.inventory.duplicate()}
 
 
 # ข้อเสนอสินบนตอนโดนไล่ออก / คืน true = ผู้เล่นเลือกจ่าย (main หักเงินและเริ่มวันใหม่เอง)
@@ -518,8 +561,11 @@ func _offer_bribe(cost: int) -> bool:
 			"color": Color(0.5, 0.85, 0.5), "footer": "CASH: $%d" % money},
 		{"id": "leave", "name": "WALK AWAY", "desc": "Take the firing.", "color": Color(0.85, 0.35, 0.3)},
 	]
-	var line: String = _lines([Dialogue.BRIBE_OFFER.pick_random()], {"cost": cost})[0]
-	var pick: String = await item_choice.offer("A QUIET WORD", line, cards, "click a card")
+	var level := GameData.suspicion_level(suspicion)
+	var pool: Array = [Dialogue.BRIBE_OFFER, Dialogue.BRIBE_OFFER_WARY, Dialogue.BRIBE_OFFER_PARANOID][level]
+	var hint: String = ["click a card", "he's getting suspicious", "he's watching you closely"][level]
+	var line: String = _lines([pool.pick_random()], {"cost": cost})[0]
+	var pick: String = await item_choice.offer("A QUIET WORD", line, cards, hint)
 	return pick == "pay"
 
 
@@ -551,8 +597,26 @@ func _show_review() -> int:
 	return grade
 
 
+# ฉากจบหลังผ่านวันสุดท้าย: corrupt = จ่ายสินบนมาก ("The Company Owns You" ตาแดง) / ไม่งั้นฉาก "You Are the Boss Now"
+func _play_ending(corrupt: bool, flow: int) -> void:
+	var lines: Array = Dialogue.ENDING_CORRUPT if corrupt else Dialogue.ENDING
+	await dialogue.say(_lines(lines, {"bribes": bribes_used, "paid": bribe_paid_total}))
+	if flow != _flow_id:
+		return
+	await _ending_cinematic(corrupt)
+	if flow != _flow_id:
+		return
+	Settings.night_shift = true
+	Settings.record_ending("corrupt" if corrupt else "boss")   # บันทึกลงไฟล์ด้วย
+	var head := "THE COMPANY OWNS YOU" if corrupt else "SHIFT COMPLETE"
+	var extra := "BRIBES PAID: %d ($%d)\n" % [bribes_used, bribe_paid_total] if corrupt else ""
+	_show_screen("%s\n%sTRASH STACKED: %d\nTOTAL EARNED: $%d\n\nclick to return to title" % [head, extra, score, earned])
+	state = State.ENDING
+
+
 # ฉากจบ: จอมืดสนิท มีแต่ตาของผู้เล่นเรืองขึ้นกลางความมืด (boss หายไปแล้ว)
-func _ending_cinematic() -> void:
+func _ending_cinematic(corrupt := false) -> void:
+	screen_fx.set_eye_color(GameData.SUSPICION_COLORS[2 if corrupt else 0])   # ติดสินบน = ตาแดง
 	sfx.play("ending")
 	sfx.set_loop("ambient", false)
 	await screen_fx.fade_to_black(1.8)
@@ -639,6 +703,8 @@ func _debug_day(args: PackedStringArray) -> String:
 	money = 0
 	earned = 0
 	bribes_used = 0
+	bribe_paid_total = 0
+	_set_suspicion(0)
 	items.reset_run()
 	_start_day()
 	return "Starting day %d" % n
@@ -663,9 +729,50 @@ func _debug_overtime(args: PackedStringArray) -> String:
 	money = 0
 	earned = 0
 	bribes_used = 0
+	bribe_paid_total = 0
+	_set_suspicion(0)
 	items.reset_run()
 	_start_day()
 	return "Starting overtime shift %d" % n
+
+
+# /ending corrupt|boss — เล่นฉากจบทันที (ไว้ทดสอบบท/สีตา โดยไม่ต้องเล่นครบ 5 วัน)
+func _debug_ending(args: PackedStringArray) -> String:
+	var corrupt := not args.is_empty() and args[0] == "corrupt"
+	_flow_id += 1
+	pause_menu.set_paused(false)
+	dialogue.abort()
+	review.abort()
+	item_choice.abort()
+	shop.abort()
+	screen_fx.clear(0.01)
+	_reset_time()
+	title_menu.close()
+	game_over_label.hide()
+	overtime = false
+	day = GameData.DAYS.size()
+	state = State.DIALOGUE
+	if corrupt and bribes_used < GameData.CORRUPT_ENDING_BRIBES:
+		bribes_used = 3
+		bribe_paid_total = maxi(bribe_paid_total, 1750)
+	_play_ending(corrupt, _flow_id)
+	return "Playing ending: %s" % ("corrupt" if corrupt else "boss")
+
+
+# ตั้งความระแวง (0-100) แล้วเปลี่ยนสีตา boss ตามระดับ (บทพูด + ตาในฉากจบ)
+func _set_suspicion(value: int) -> void:
+	suspicion = clampi(value, 0, 100)
+	var color: Color = GameData.SUSPICION_COLORS[GameData.suspicion_level(suspicion)]
+	dialogue.set_eye_color(color)
+	screen_fx.set_eye_color(color)
+
+
+# /suspicion N — ตั้งความระแวงของ boss (ไว้ทดสอบตาเปลี่ยนสี / โดนตรวจ)
+func _debug_suspicion(args: PackedStringArray) -> String:
+	if args.is_empty() or not args[0].is_valid_int():
+		return "Usage: /suspicion N"
+	_set_suspicion(args[0].to_int())
+	return "Suspicion: %d (level %d)" % [suspicion, GameData.suspicion_level(suspicion)]
 
 
 # /money N — ตั้งเงินในกระเป๋า (ไว้ทดสอบร้านของ boss / สินบน)

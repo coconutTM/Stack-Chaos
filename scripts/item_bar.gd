@@ -7,9 +7,9 @@ extends CanvasLayer
 
 signal slot_pressed(index: int)
 
-const SLOT_W := 56.0
-const SLOT_H := 26.0
-const GAP := 3.0
+const SLOT_W := 38.0   # ช่องสี่เหลี่ยมพอดีไอคอน 32x32
+const SLOT_H := 38.0
+const GAP := 4.0
 
 var _buttons: Array[Button] = []
 var _info: Label
@@ -47,6 +47,8 @@ func _ready() -> void:
 		b.custom_minimum_size = Vector2(SLOT_W, SLOT_H)
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_size_override("font_size", 8)
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.expand_icon = false
 		b.pressed.connect(slot_pressed.emit.bind(i))
 		b.mouse_entered.connect(_on_hover.bind(i))
 		b.mouse_exited.connect(_on_hover.bind(-1))
@@ -60,8 +62,12 @@ func _ready() -> void:
 	_info.anchor_right = 1.0
 	_info.anchor_top = 1.0
 	_info.anchor_bottom = 1.0
-	_info.offset_top = -(SLOT_H + 20.0)
+	_info.offset_left = 8.0    # คำอธิบายยาวกว่า 1 บรรทัดได้ (ห่อคำ ขยายขึ้นด้านบน)
+	_info.offset_right = -8.0
+	_info.offset_top = -(SLOT_H + 32.0)
 	_info.offset_bottom = -(SLOT_H + 6.0)
+	_info.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_info.add_theme_font_size_override("font_size", 8)
 	_info.add_theme_color_override("font_outline_color", Color.BLACK)
 	_info.add_theme_constant_override("outline_size", 4)
@@ -96,10 +102,13 @@ func refresh(inventory: Array, usable: bool, status: String, next_text: String) 
 		var b := _buttons[i]
 		if i < inventory.size():
 			var data: Dictionary = ItemData.ITEMS[inventory[i]]
-			b.text = data.short
-			b.modulate = data.color
+			var icon := ItemData.icon(inventory[i])
+			b.icon = icon
+			b.text = "" if icon != null else data.short   # ไม่มีไฟล์ไอคอน = ชื่อสั้นเหมือนเดิม
+			b.modulate = Color.WHITE if icon != null else data.color
 			b.disabled = not usable
 		else:
+			b.icon = null
 			b.text = "-"
 			b.modulate = Color(1, 1, 1, 0.45)
 			b.disabled = true

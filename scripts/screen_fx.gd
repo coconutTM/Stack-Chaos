@@ -70,6 +70,13 @@ func fade_to_black(seconds := 1.5) -> void:
 	await _fade_tween.finished
 
 
+# เปลี่ยนสีตาเรืองกลางจอ (ฉากจบแบบติดสินบนตาแดง)
+func set_eye_color(c: Color) -> void:
+	for node in _eyes.get_children():
+		var r := node as ColorRect
+		r.color = Color(c, 0.25) if r.size.x > 14.0 else c
+
+
 # ตาเรืองกลางจอลืมขึ้นช้าๆ (scale แกน y จาก 0 → 1) / on = false ซ่อน
 func show_eyes(on: bool, open_seconds := 0.8) -> void:
 	_eyes.visible = on

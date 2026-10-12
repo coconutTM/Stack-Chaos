@@ -116,6 +116,7 @@ const SHOP_OPEN := ["Spend it if you like. Or save it. You may need it.", "My st
 const SHOP_BUY := ["Good choice.", "Pleasure.", "That one's useful."]
 const SHOP_BROKE := ["You can't afford that.", "Come back with more.", "Not enough."]
 const SHOP_FULL := ["Your hands are full.", "No room. Use something first."]
+const SHOP_SELL := ["I'll take it off your hands.", "Half price. Don't argue.", "Fine. Sold."]
 
 # สินบน: โดนไล่ออกแล้วมีเงินพอ boss เสนอให้เล่นวันนั้นใหม่ (ตัวแปร {cost}) — สุ่มหนึ่งบรรทัด
 const BRIBE_OFFER := [
@@ -123,6 +124,22 @@ const BRIBE_OFFER := [
 	"Walls have ears. Mine are for sale. ${cost}.",
 	"${cost}, and the day starts over. Between us.",
 ]
+const BRIBE_OFFER_WARY := [
+	"Again? ${cost}. I'm starting to wonder about you.",
+	"${cost}. People are asking questions. Don't make me answer them.",
+]
+const BRIBE_OFFER_PARANOID := [
+	"${cost}. Last time. I mean it.",
+	"You're costing me sleep. ${cost}. Final offer.",
+]
+# โดนตรวจ (ต้นวัน ตัวแปร {taken} = เงินที่ถูกยึด)
+const AUDIT := [
+	"Audit.",
+	"I counted the envelopes. All of them.",
+	"Half your cash is mine. ${taken}.",
+	"Don't offer me anything today. I'm watching.",
+]
+const BRIBE_REFUSED := ["Not today.", "I told you. No deals today."]
 const BRIBE_PAID := ["Pleasure doing business.", "Same day. Same quota. Don't waste it."]
 
 # ท้ายวัน — โดนไล่ออก (แยกสาเหตุ)
@@ -153,6 +170,17 @@ const ENDING := [
 	{"text": "Your shadow suits you.", "portrait": "eyes_turn"},
 ]
 
+# ฉากจบพิเศษ (ติดสินบนมาก): ตัวแปร {bribes} {paid} = จำนวนครั้งและเงินสินบนรวมของรอบ
+const ENDING_CORRUPT := [
+	"Five days. The pile stood. Every time.",
+	"{bribes} envelopes. ${paid}. I kept count.",
+	"You thought you were buying your way out.",
+	"You were buying your way in.",
+	{"text": "Look at me. Go on.", "portrait": "empty"},
+	"There is no one here. There never was. Only the debt.",
+	{"text": "The company owns you now. Congratulations.", "portrait": "eyes_turn"},
+]
+
 # ผ่านเกมแล้วเริ่มรอบใหม่ (Settings.night_shift): แทนบรรทัดแรกของวันที่ 1
 const NIGHT_FIRST_LINE := "You're back. Good. Sit. The night shift is yours."
 
@@ -166,6 +194,7 @@ const COMMENTS := {
 	"fail": ["There goes another one.", "Watch the edge.", "Was that on purpose?"],
 	"collapse": ["The whole pile just moved.", "Hm. It's falling apart.", "Is that what you call stacking?", "Everything that fell counts. Everything."],
 	"fragile": ["Careful with that one. Fragile.", "That is a TV. Do not drop it."],
+	"suspicious": ["I'm watching you.", "Every piece. I see every piece.", "Don't look at me. Look at the pile."],
 	"insured": ["Covered. This time.", "The company pays for that one. Once."],
 	"near": ["Almost there.", "A little more.", "Don't blow it now."],
 }

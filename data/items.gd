@@ -6,6 +6,7 @@ extends RefCounted
 
 const MAX_SLOTS := 6        # เก็บได้สูงสุดกี่ช่อง
 const GIVE_PER_DAY := 2     # boss แจกกี่ชิ้นตอนเริ่มวัน
+const SELL_RATIO := 0.5     # boss รับซื้อ item คืนในราคากี่เท่าของราคาขาย
 const SHOP_STOCK := 3       # ร้านของ boss วางขายกี่ชิ้นต่อวัน (สุ่มไม่ซ้ำ ตาม weight)
 
 # name = ชื่อเต็ม, short = ชื่อบนปุ่ม, weight = น้ำหนักความน่าจะเป็น (สัมพัทธ์), price = ราคาในร้านของ boss, fail = ข้อความตอนใช้ไม่ได้
@@ -41,6 +42,23 @@ const ITEMS := {
 		"fail": "You're already covered.",
 	},
 }
+
+
+static var _icons := {}
+
+
+# ราคาที่ boss รับซื้อ item คืน
+static func sell_price(id: String) -> int:
+	return floori(float(ITEMS[id].price) * SELL_RATIO)
+
+
+
+# ไอคอน pixel ของ item (อบจากโมเดล 3D ด้วย tools/bake_icons.gd → assets/icons/<id>.png) / ไม่มีไฟล์ = null (UI กลับไปใช้ข้อความ)
+static func icon(id: String) -> Texture2D:
+	if not _icons.has(id):
+		var path := "res://assets/icons/%s.png" % id
+		_icons[id] = load(path) if ResourceLoader.exists(path) else null
+	return _icons[id]
 
 
 # สุ่ม id ของ item ตามน้ำหนัก

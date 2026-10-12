@@ -61,6 +61,30 @@ static func grade_for(fails: int, spare: int) -> int:
 	return GRADES.size() - 1
 
 
+# ฉากจบพิเศษ "The Company Owns You": ผ่านวันสุดท้ายโดยจ่ายสินบนในรอบนั้นอย่างน้อยเท่านี้ครั้ง
+const CORRUPT_ENDING_BRIBES := 2
+const ENDING_COUNT := 2           # จำนวนฉากจบทั้งหมด (boss, corrupt) ไว้โชว์ ENDINGS x/2 บนหน้า title
+
+# ความระแวงของ boss (0-100): จ่ายสินบนเพิ่ม / ผ่านวันโดยไม่ติดสินบนลด / ถึง SUSPICION_AUDIT = ต้นวันถัดไปโดนตรวจ (ยึดเงิน + วันนั้นไม่รับสินบน)
+const SUSPICION_PER_BRIBE := 35
+const SUSPICION_DECAY := 10
+const SUSPICION_WARY := 35        # ระดับ 1 (ตาส้ม บทพูดเปลี่ยน)
+const SUSPICION_PARANOID := 70    # ระดับ 2 (ตาแดง)
+const SUSPICION_AUDIT := 100
+const SUSPICION_COLORS := [Color(1.0, 0.85, 0.2), Color(1.0, 0.55, 0.15), Color(1.0, 0.2, 0.15)]   # สีตา boss ตามระดับ
+const AUDIT_KEEP := 0.5           # โดนตรวจแล้วเหลือเงินกี่เท่า
+const AUDIT_RESET := 50           # หลังโดนตรวจ ความระแวงเหลือเท่านี้
+
+
+# ระดับความระแวง: 0 = calm, 1 = wary, 2 = paranoid
+static func suspicion_level(s: int) -> int:
+	if s >= SUSPICION_PARANOID:
+		return 2
+	if s >= SUSPICION_WARY:
+		return 1
+	return 0
+
+
 # ราคาสินบนครั้งที่ used + 1 ของรอบ (250 → 500 → 1000 ...)
 static func bribe_cost(used: int) -> int:
 	return BRIBE_BASE * (1 << used)

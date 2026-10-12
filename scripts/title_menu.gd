@@ -40,6 +40,7 @@ const HOW_TO_LINES := [
 
 var _root: Control
 var _subtitle: Label
+var _endings: Label
 var _overtime_button: Button
 var _footer: Label
 var _panel: Control
@@ -58,6 +59,9 @@ func _ready() -> void:
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	_subtitle = _label("(night shift)", 8, 44.0, 10.0)
 	_subtitle.add_theme_color_override("font_color", Color(0.6, 0.65, 0.9))
+
+	_endings = _label("", 8, 58.0, 10.0)
+	_endings.add_theme_color_override("font_color", Color(0.75, 0.3, 0.25))
 
 	# ปุ่มเรียงเป็นแถวซ้าย ปล่อยกลางจอไว้ให้เห็นกองขยะ
 	var box := VBoxContainer.new()
@@ -153,6 +157,8 @@ func _open_panel(title: String, lines: Array) -> void:
 func open() -> void:
 	_panel.visible = false
 	_subtitle.visible = Settings.night_shift
+	_endings.text = "ENDINGS  %d/%d" % [Settings.endings_seen.size(), GameData.ENDING_COUNT]
+	_endings.visible = not Settings.endings_seen.is_empty()
 	_overtime_button.disabled = not Settings.night_shift
 	_overtime_button.text = "OVERTIME" if Settings.night_shift else "OVERTIME [LOCKED]"
 	_overtime_button.tooltip_text = "" if Settings.night_shift else "Finish all 5 days to unlock"

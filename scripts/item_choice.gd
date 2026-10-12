@@ -9,11 +9,13 @@ signal picked(id: String)
 
 const CARD_W := 118.0
 const CARD_H := 98.0
+const CARD_H_SMALL := 76.0   # การ์ดไอคอนขนาดจริง (ร้านของ boss)
 const GAP := 8.0
 
 var _title: Label
 var _boss: Label
 var _hint: Label
+var _desc: Label
 var _row: HBoxContainer
 var _open := false
 
@@ -41,7 +43,9 @@ func _ready() -> void:
 	_row.offset_bottom = 76.0 + CARD_H
 	add_child(_row)
 
-	_hint = _label(8, 200.0, 10.0)
+	_desc = _label(8, 186.0, 10.0)   # คำอธิบาย item ใบที่ชี้เมาส์อยู่ (การ์ดไอคอนไม่มีข้อความอธิบายในใบ)
+	_desc.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+	_hint = _label(8, 208.0, 10.0)
 	_hint.add_theme_color_override("font_color", Color(0.6, 0.5, 0.15))
 	visible = false
 
@@ -65,7 +69,7 @@ func choose(ids: Array, boss_line: String) -> String:
 	var cards: Array = []
 	for id in ids:
 		var data: Dictionary = ItemData.ITEMS[id]
-		cards.append({"id": id, "name": data.name, "desc": data.desc, "color": data.color})
+		cards.append({"id": id, "name": data.name, "desc": data.desc, "color": data.color, "icon": ItemData.icon(id), "icon_scale": 2})
 	return await offer("CHOOSE A REWARD", boss_line, cards, "click a card to take it")
 
 
@@ -74,9 +78,10 @@ func offer(title: String, boss_line: String, cards: Array, hint: String) -> Stri
 	for c in _row.get_children():
 		c.queue_free()
 	for c in cards:
-		var b := make_card(c.name, c.desc, c.color, c.get("footer", ""))
+		var b := make_card(c.name, c.desc, c.color, c.get("footer", ""), c.get("icon"), c.get("icon_scale", 1))
 		var id: String = c.id
 		b.pressed.connect(func() -> void: picked.emit(id))
+		bind_hover(b, _desc)
 		_row.add_child(b)
 	var width := cards.size() * CARD_W + (cards.size() - 1) * GAP
 	_row.offset_left = -width * 0.5
@@ -84,6 +89,7 @@ func offer(title: String, boss_line: String, cards: Array, hint: String) -> Stri
 	_title.text = title
 	_boss.text = '"%s"' % boss_line
 	_hint.text = hint
+	_desc.text = ""
 	_open = true
 	visible = true
 	var id: String = await picked
@@ -93,9 +99,11 @@ func offer(title: String, boss_line: String, cards: Array, hint: String) -> Stri
 
 
 # การ์ดหนึ่งใบ: ชื่อ (สีของ accent) + คำอธิบาย + footer (เช่นราคา ไม่ใส่ = ไม่โชว์) / footer ที่โชว์ดึงด้วย card.get_meta("footer")
-static func make_card(card_name: String, card_desc: String, accent: Color, footer := "") -> Button:
+# มี icon = โชว์ไอคอนแทนคำอธิบาย (ขยาย icon_scale เท่า แบบ nearest) คำอธิบายเก็บใน meta "desc" ให้ bind_hover() ไปโชว์ที่บรรทัดล่างจอ
+static func make_card(card_name: String, card_desc: String, accent: Color, footer := "", icon: Texture2D = null, icon_scale := 1) -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(CARD_W, CARD_H)
+	b.custom_minimum_size = Vector2(CARD_W, CARD_H if icon == null or icon_scale > 1 else CARD_H_SMALL)
+	b.set_meta("desc", card_desc)
 	b.focus_mode = Control.FOCUS_NONE
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = Color(0.07, 0.07, 0.1)
@@ -129,15 +137,27 @@ static func make_card(card_name: String, card_desc: String, accent: Color, foote
 	name_label.add_theme_font_size_override("font_size", 8)
 	name_label.add_theme_color_override("font_color", accent)
 	box.add_child(name_label)
-	var desc := Label.new()
-	desc.text = card_desc
-	desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	desc.add_theme_font_size_override("font_size", 8)
-	desc.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-	box.add_child(desc)
+	if icon != null:
+		box.add_theme_constant_override("separation", 4)
+		var pic := TextureRect.new()
+		pic.texture = icon
+		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.custom_minimum_size = Vector2(32.0, 32.0) * icon_scale
+		pic.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		box.add_child(pic)
+	else:
+		var desc := Label.new()
+		desc.text = card_desc
+		desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		desc.add_theme_font_size_override("font_size", 8)
+		desc.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		box.add_child(desc)
 	var foot := Label.new()
 	foot.text = footer
 	foot.visible = footer != ""
@@ -148,6 +168,12 @@ static func make_card(card_name: String, card_desc: String, accent: Color, foote
 	box.add_child(foot)
 	b.set_meta("footer", foot)
 	return b
+
+
+# ชี้เมาส์ที่การ์ด = โชว์คำอธิบาย (meta "desc") บน label / เอาเมาส์ออก = ล้าง
+static func bind_hover(card: Button, label: Label) -> void:
+	card.mouse_entered.connect(func() -> void: label.text = card.get_meta("desc"))
+	card.mouse_exited.connect(func() -> void: label.text = "")
 
 
 # ตัดทิ้งทันที (คำสั่ง /day) ให้ coroutine ที่ await choose() ตื่นแล้วเลิกเอง (main เช็ค _flow_id)

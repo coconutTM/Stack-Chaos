@@ -76,6 +76,7 @@ godot --headless --path . --export-release "Web" build/web/index.html   # export
 godot --headless --path . --quit    # reimport asset / สร้าง .godot ใหม่ (ใช้เช็ค parse error ได้ด้วย)
 godot --headless --path . --import  # import ไฟล์ใหม่ (เช่น .wav ที่เพิ่งอบ — --quit อาจออกก่อน import)
 godot --headless --path . -s tools/bake_sfx.gd   # อบเสียงสังเคราะห์เป็น audio/*.wav
+xvfb-run -a -s "-screen 0 1280x720x24" godot --display-driver x11 --path . -s tools/bake_icons.gd   # อบไอคอน item เป็น assets/icons/*.png (ต้องมีหน้าต่าง) แล้วรัน --import
 ```
 
 โปรเจกต์นี้**ไม่มี** test, ไม่มี build script, ไม่มี package manager — ไม่ต้องไปหา
@@ -241,15 +242,27 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 `ItemChoice` (`scripts/item_choice.gd`, CanvasLayer 12) โชว์การ์ด 3 ใบจาก `ItemData.roll_distinct(3)` (ไม่ซ้ำ ตามน้ำหนัก) `await item_choice.choose(ids, boss_line)` คืน id ที่เลือก
 (`""` = ถูกตัดโดย `abort()` ใน `/day` / `/overtime`) → `items.give(id)` / แจก item สุ่มตอนต้นวันถัดไปยังเกิดตามเดิม (`GIVE_PER_DAY`) / บท boss = `Dialogue.REWARD_LINES`
 
+**ไอคอน item (โมเดล 3D → pixel):** `ItemModels` (`data/item_models.gd`) ประกอบโมเดล primitive ต่อ item ด้วย `Psx.material()` (วาง `assets/models/items/<id>.glb` = ใช้ไฟล์แทน)
+→ `tools/bake_icons.gd` เรนเดอร์ใน `SubViewport` (กล้อง orthogonal, ปิด vertex snapping ด้วย `Psx.set_snap(false)`) แล้วย่อเหลือ 32x32 บันทึก `assets/icons/<id>.png` (เกมไม่เรนเดอร์ 3D ตอนรัน)
+→ `ItemData.icon(id)` โหลด+cache (ไม่มีไฟล์ = `null` UI กลับไปใช้ข้อความ) / ใช้ใน `ItemBar` (ช่อง 38x38 `Button.icon`), `ItemChoice.make_card(..., icon, icon_scale)` (การ์ดไอคอนไม่มีคำอธิบายในใบ:
+`ItemChoice.bind_hover(card, label)` โชว์ meta `"desc"` ตอนชี้เมาส์), `BossShop` / **เพิ่ม item ใหม่ = เพิ่มเมธอด `_xxx()` ใน `ItemModels.build()` แล้วรัน bake + `--import`**
 **ร้านของ boss + สินบน (ใช้เงิน):** `main.money` = เงินในกระเป๋า (ลดได้) / `main.earned` = รายได้รวมของรอบ (ไม่ลด ใช้โชว์ `TOTAL EARNED` ตอนจบ) / หน้าสรุปผลงานแถวสุดท้ายคือ `CASH`
 รีเซ็ต `money` / `earned` / `bribes_used` ทุกที่ที่เริ่มรอบ (`_start_run`, `/day`, `/overtime`)
-- **ร้าน** `BossShop` (`scripts/boss_shop.gd`, CanvasLayer 12) — เปิดใน `_end_day()` ต่อจากเลือกรางวัล ถ้ายังมีวันต่อไป และเงินพอซื้อชิ้นที่ถูกสุด และคลังไม่เต็ม (`main._open_shop()`)
+- **ร้าน** `BossShop` (`scripts/boss_shop.gd`, CanvasLayer 12) — เปิดใน `_end_day()` ต่อจากเลือกรางวัล ถ้ายังมีวันต่อไป และ (เงินพอซื้อชิ้นที่ถูกสุดและคลังไม่เต็ม **หรือ** มี item ในคลังให้ขาย) (`main._open_shop()`)
   สุ่มของ `ItemData.SHOP_STOCK` (3) ชิ้นจาก `roll_distinct()` / ราคา = `"price"` ใน `ItemData.ITEMS` / ร้านแค่แสดงผล **main เป็นเจ้าของเงินและคลัง**:
-  `shop.buy` = `main._shop_buy(id)` คืน `{ok, cash, line}` / ซื้อได้หลายชิ้นจนกด LEAVE / การ์ดใช้ `ItemChoice.make_card()` ร่วมกับหน้าเลือกรางวัล / `shop.abort()` ใน `/day` `/overtime`
+  `shop.buy` = `main._shop_buy(id)`, `shop.sell` = `main._shop_sell(index)` (ขายคืนได้ `ItemData.sell_price()` = `SELL_RATIO` 0.5 ของราคา) ทั้งคู่คืน `{ok, cash, line, inventory}` ให้ร้านวาดเงิน/แถวคลังใหม่
+  ซื้อ/ขายได้หลายครั้งจนกด LEAVE / การ์ดใช้ `ItemChoice.make_card()` ร่วมกับหน้าเลือกรางวัล / `shop.abort()` ใน `/day` `/overtime`
 - **สินบน** — โดนไล่ออก (ทุกสาเหตุ ทั้งโหมดปกติและ OVERTIME) หลัง boss พูดบทไล่ออก ถ้า `money >= GameData.bribe_cost(bribes_used)` (`BRIBE_BASE` 250 x2 ทุกครั้งในรอบ) →
   `main._offer_bribe(cost)` ใช้ `ItemChoice.offer()` (การ์ด PAY / WALK AWAY) → จ่าย = หักเงิน + `_start_day(true)`
   **`_start_day(retry)`**: ใช้ `_cur_day` เดิม (ห้ามเรียก `overtime_day()` ซ้ำ) ข้ามบทต้นวันและไม่แจก item ประจำวัน (พูด `Dialogue.BRIBE_PAID`) / คลังคงเดิม
-- บท: `Dialogue.SHOP_*`, `BRIBE_OFFER` (`{cost}`), `BRIBE_PAID` / dev console: `/money N`
+- **ความระแวงของ boss** `main.suspicion` 0-100 (รีเซ็ตต้นรอบ) — จ่ายสินบน `+SUSPICION_PER_BRIBE` (35) / ผ่านวันโดยไม่ติดสินบน (`_bribed_today`) `-SUSPICION_DECAY` (10) /
+  ระดับ `GameData.suspicion_level()` calm / wary (≥35) / paranoid (≥70) → ตา boss เปลี่ยนสีเหลือง/ส้ม/แดง (`main._set_suspicion()` → `DialogueBox.set_eye_color()` + `ScreenFx.set_eye_color()`),
+  บทเสนอสินบนเปลี่ยน (`BRIBE_OFFER_WARY/_PARANOID`), paranoid มีคอมเมนต์ `suspicious` ต้นวัน / ถึง `SUSPICION_AUDIT` (100) → **ต้นวันถัดไป (ไม่ใช่วันเล่นซ้ำ) โดนตรวจ**:
+  `Dialogue.AUDIT` ยึดเงิน `1 - AUDIT_KEEP`, ความระแวงเหลือ `AUDIT_RESET`, `_audit_today` = วันนั้นไม่รับสินบน (`BRIBE_REFUSED`)
+- **ฉากจบพิเศษ "The Company Owns You"** — ผ่านวันสุดท้ายโดย `bribes_used >= GameData.CORRUPT_ENDING_BRIBES` (2) → `main._play_ending(true, flow)` ใช้ `Dialogue.ENDING_CORRUPT`
+  (`{bribes}` `{paid}` = `bribe_paid_total`) ตาแดงในฉากจบ / หน้าจบเขียน `THE COMPANY OWNS YOU` / `Settings.endings_seen` (`"boss"`, `"corrupt"`, บันทึกใน `settings.cfg`) → หน้า title โชว์ `ENDINGS x/2`
+  (`GameData.ENDING_COUNT`) / เซฟเก่าที่ `night_shift` = ดูฉาก boss แล้ว
+- บท: `Dialogue.SHOP_*`, `BRIBE_*`, `AUDIT` / dev console: `/money N`, `/suspicion N`, `/ending corrupt|boss`
 - **ถ้าจะลดของฟรี** เพราะมีร้านแล้วของล้น แก้ `ItemData.GIVE_PER_DAY` (2 → 1)
 
 **โหมด OVERTIME:** ปลดล็อกหลังจบ 5 วัน (`Settings.night_shift`) / ปุ่ม OVERTIME บนหน้า title (`_start_run(true)`) /
