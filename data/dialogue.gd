@@ -12,6 +12,7 @@ const DAY_INTRO := {
 		"Right click spins a piece. Shift and right click flips it on its side. Scroll the wheel to zoom.",
 		"Hold right click and drag to look around the pile.",
 		"The white circle shows where it will land. A red circle means it's headed off the platform.",
+		"The crane is old. It sways. Time your drop.",
 		"Stack to {quota} meters with {pieces} pieces. Every piece must land on the pile.",
 		"Lose {max_fails} pieces, over the edge or left on the floor, and you're done. If the pile falls, every piece that falls counts.",
 		"Don't disappoint me.",

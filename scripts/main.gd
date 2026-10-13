@@ -975,7 +975,7 @@ func move_held_block(delta: float) -> void:
 	if hit == null:
 		return
 	var p: Vector3 = hit
-	# เมาส์เลยระยะเอื้อมของเครน → ชิ้นแกว่ง (ขอบ/มุมจะได้ไม่เป็นจุดตรึงที่ซ้อนตรงเป๊ะทุกครั้ง)
+	# เครนส่ายตลอดตาม sway ของวัน / เมาส์เลยระยะเอื้อม → แกว่งแรงขึ้น (ขอบ/มุมจะได้ไม่เป็นจุดตรึงที่ซ้อนตรงเป๊ะทุกครั้ง)
 	var out := absf(p.x) > BOUND or absf(p.z) > BOUND
 	_strain = lerpf(_strain, 1.0 if out else 0.0, 1.0 - exp(-STRAIN_RATE * delta))
 	_strain_time += delta
@@ -983,7 +983,7 @@ func move_held_block(delta: float) -> void:
 	var sway := Vector2(
 		sin(_strain_time * 3.1 + _strain_phase.x) + 0.5 * sin(_strain_time * 7.3 + _strain_phase.y),
 		sin(_strain_time * 2.7 + _strain_phase.z) + 0.5 * sin(_strain_time * 6.1 + _strain_phase.w)
-	) * (STRAIN_AMP / 1.5 * _strain)
+	) * (maxf(float(_cur_day.get("sway", 0.0)), STRAIN_AMP * _strain) / 1.5)
 	# ตั้งทั้ง transform (ทิศ + ตำแหน่ง) ไม่ใช่แค่ global_position ไม่งั้นทิศที่หมุนไว้ถูกทับกลับเป็นเดิมทุกเฟรม
 	# offset แกว่งบวกหลัง clamp (ไม่ clamp ซ้ำ ไม่งั้นครึ่งหนึ่งของการแกว่งถูกตัดกลับมาที่ขอบพอดี)
 	current.global_transform = Transform3D(_hold_basis, Vector3(

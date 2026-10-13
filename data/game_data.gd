@@ -12,12 +12,13 @@ const COMMENT_COOLDOWN := 6.0 # boss คอมเมนต์ระหว่า�
 # height = โควต้าความสูง, pieces = จำนวนชิ้นที่ให้ใช้ (นับทุกชิ้นที่ spawn แม้จะหลุด)
 # tutorial = true เปิดคอมเมนต์สอนเล่นระหว่างวัน (วันที่ 1)
 # modifiers = ตัวปรับของวัน (ดู MODIFIERS ด้านล่าง) ใส่ได้หลายอัน
+# sway = เครนส่ายตลอดทั้งวัน (เมตร, แอมพลิจูดของชิ้นที่ถือ) / เมาส์เลยขอบจะแกว่งแรงกว่านี้ (STRAIN_AMP ใน main.gd) ใช้ค่าที่มากกว่า
 const DAYS := [
-	{"height": 4.0, "pieces": 8, "tutorial": true},
-	{"height": 5.5, "pieces": 9},
-	{"height": 7.0, "pieces": 10, "modifiers": ["wind"]},
-	{"height": 8.5, "pieces": 11, "modifiers": ["rain"]},
-	{"height": 10.0, "pieces": 12, "modifiers": ["wind", "shake"]},
+	{"height": 4.0, "pieces": 8, "sway": 0.05, "tutorial": true},
+	{"height": 5.5, "pieces": 9, "sway": 0.08},
+	{"height": 7.0, "pieces": 10, "sway": 0.12, "modifiers": ["wind"]},
+	{"height": 8.5, "pieces": 11, "sway": 0.14, "modifiers": ["rain"]},
+	{"height": 10.0, "pieces": 12, "sway": 0.17, "modifiers": ["wind", "shake"]},
 ]
 
 # ตัวปรับของวัน (ค่าจูน) — interval = ช่วงเวลาสุ่มระหว่างครั้ง (วินาที) / warn = เตือนก่อนกี่วินาที
@@ -39,16 +40,16 @@ const MODIFIERS := {
 # เกรดท้ายวัน (เฉพาะวันที่ผ่าน) ตัดสินจากชิ้นที่เสีย (fails) และชิ้นที่เหลือไม่ได้ใช้ (spare = pieces - ชิ้นที่ใช้ไป)
 # เรียงจากดีสุด ตัวแรกที่เข้าเงื่อนไขชนะ (ตัวสุดท้ายต้องรับทุกกรณี) / bonus = โบนัสเงินของเกรดนั้น
 const GRADES := [
-	{"id": "S", "max_fails": 0, "min_spare": 3, "bonus": 150, "color": Color(1.0, 0.85, 0.2)},
-	{"id": "A", "max_fails": 1, "min_spare": 1, "bonus": 75, "color": Color(0.4, 1.0, 0.45)},
-	{"id": "B", "max_fails": 2, "min_spare": 1, "bonus": 25, "color": Color(0.55, 0.75, 1.0)},
+	{"id": "S", "max_fails": 0, "min_spare": 3, "bonus": 60, "color": Color(1.0, 0.85, 0.2)},
+	{"id": "A", "max_fails": 1, "min_spare": 1, "bonus": 30, "color": Color(0.4, 1.0, 0.45)},
+	{"id": "B", "max_fails": 2, "min_spare": 1, "bonus": 10, "color": Color(0.55, 0.75, 1.0)},
 	{"id": "C", "max_fails": 99, "min_spare": 0, "bonus": 0, "color": Color(0.75, 0.75, 0.75)},
 ]
 const REWARD_MAX_GRADE := 1   # ได้เกรด A (index 1) หรือดีกว่า → boss ให้เลือกรางวัล item 1 ใน 3 ก่อนขึ้นวันใหม่
-const TROPHY_BONUS := 100      # โบนัสเงินเมื่อ GOLD TROPHY วางนิ่งบนกองได้ (ต่อชิ้น)
-const WAGE_BASE := 100        # ค่าแรงวันที่ 1
-const WAGE_PER_DAY := 25      # ค่าแรงเพิ่มต่อวัน
-const WAGE_PER_SPARE := 20    # เงินพิเศษต่อชิ้นที่เหลือ
+const TROPHY_BONUS := 40      # โบนัสเงินเมื่อ GOLD TROPHY วางนิ่งบนกองได้ (ต่อชิ้น)
+const WAGE_BASE := 60        # ค่าแรงวันที่ 1
+const WAGE_PER_DAY := 15      # ค่าแรงเพิ่มต่อวัน
+const WAGE_PER_SPARE := 10    # เงินพิเศษต่อชิ้นที่เหลือ
 const BRIBE_BASE := 250        # สินบนครั้งแรกของรอบ (โดนไล่ออกแล้วจ่ายเพื่อเล่นวันนั้นใหม่) / ครั้งต่อไปคูณสอง
 
 
@@ -101,6 +102,9 @@ const OVERTIME_HEIGHT_BASE := 10.0
 const OVERTIME_HEIGHT_STEP := 1.5
 const OVERTIME_PIECES_BASE := 12
 const OVERTIME_PIECE_STEP := 2
+const OVERTIME_SWAY_BASE := 0.17   # เครนส่ายของกะแรก = วันที่ 5 / เพิ่มต่อกะ / เพดาน
+const OVERTIME_SWAY_STEP := 0.015
+const OVERTIME_SWAY_MAX := 0.25
 const OVERTIME_MODIFIERS := ["wind", "rain", "shake", "blackout", "fog"]
 
 
@@ -111,6 +115,7 @@ static func overtime_day(n: int) -> Dictionary:
 	return {
 		"height": OVERTIME_HEIGHT_BASE + OVERTIME_HEIGHT_STEP * n,
 		"pieces": OVERTIME_PIECES_BASE + OVERTIME_PIECE_STEP * n,
+		"sway": minf(OVERTIME_SWAY_BASE + OVERTIME_SWAY_STEP * n, OVERTIME_SWAY_MAX),
 		"modifiers": pool.slice(0, count),
 	}
 
