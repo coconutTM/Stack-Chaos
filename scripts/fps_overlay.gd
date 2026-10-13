@@ -15,8 +15,9 @@ func _ready() -> void:
 	_label.anchor_right = 1.0
 	_label.anchor_top = 1.0
 	_label.anchor_bottom = 1.0
-	_label.offset_left = -110.0
-	_label.offset_top = -14.0
+	_label.offset_left = -152.0   # กว้างพอสำหรับ "120 FPS  118 draws" (18 ตัว x 8 px) ไม่งั้นท้ายข้อความถูกตัด
+	_label.offset_right = -6.0
+	_label.offset_top = -16.0
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_label.add_theme_font_size_override("font_size", 8)
 	_label.add_theme_color_override("font_outline_color", Color.BLACK)
