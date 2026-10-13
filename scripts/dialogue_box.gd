@@ -3,6 +3,7 @@ extends CanvasLayer
 
 # กล่องข้อความของ boss: เงาร่างมืดๆ + ตาเรืองแสง พูดแบบพิมพ์ทีละตัวอักษร
 # - say(lines)    โหมดบล็อก: คลิกซ้ายเพื่อข้ามการพิมพ์ / ไปบรรทัดถัดไป (ใช้ await ได้)
+#                 ปุ่ม SKIP >> หรือ Esc = ข้ามบทชุดนี้ทั้งชุด (skip())
 # - comment(text) โหมดคอมเมนต์: ไม่บล็อกเกม โผล่มาแล้วหุบเองใน COMMENT_HOLD วินาที
 #   (อยู่ด้านบนจอ เว้นที่ให้ HUD ซ้ายบน เพื่อไม่บังแถบ item ด้านล่าง)
 
@@ -21,6 +22,7 @@ var eye_color := EYE_COLOR   # สีตา boss (main เปลี่ยนต�
 var _panel: Control
 var _label: Label
 var _hint: Label
+var _skip: Button
 var _eyes: Array[ColorRect] = []
 var _glows: Array[ColorRect] = []
 var _body_parts: Array[ColorRect] = []   # เงาตัว (ไหล่/คอ/หัว/หมวก) ซ่อนได้ตอนฉากจบ
@@ -74,11 +76,27 @@ func _ready() -> void:
 	_hint.anchor_right = 1.0
 	_hint.anchor_top = 1.0
 	_hint.anchor_bottom = 1.0
-	_hint.offset_left = -48.0
+	_hint.offset_left = -132.0   # เว้นที่ให้ปุ่ม SKIP ทางขวา
+	_hint.offset_right = -74.0
 	_hint.offset_top = -16.0
 	_hint.add_theme_font_size_override("font_size", 8)
 	_hint.add_theme_color_override("font_color", Color(0.6, 0.5, 0.15))
 	_panel.add_child(_hint)
+
+	_skip = Button.new()
+	_skip.text = "SKIP >>"
+	_skip.focus_mode = Control.FOCUS_NONE
+	_skip.anchor_left = 1.0
+	_skip.anchor_right = 1.0
+	_skip.anchor_top = 1.0
+	_skip.anchor_bottom = 1.0
+	_skip.offset_left = -70.0
+	_skip.offset_right = -4.0
+	_skip.offset_top = -18.0
+	_skip.offset_bottom = -4.0
+	_skip.add_theme_font_size_override("font_size", 8)
+	_skip.pressed.connect(skip)   # ปุ่มกินคลิกเอง ไม่หลุดไปถึง main.gd (ไม่ไปปล่อยบล็อก)
+	_panel.add_child(_skip)
 
 	_panel.hide()
 
@@ -108,8 +126,13 @@ func comment(text: String) -> void:
 
 # ตัดบทพูดทิ้งทันที (คำสั่ง /day) / emit finished ให้ coroutine ที่ await say() อยู่ตื่นแล้วเลิกเอง (main เช็ค _flow_id)
 func abort() -> void:
-	_typing = false
 	_comment_left = 0.0
+	skip()
+
+
+# ข้ามบทชุดที่กำลังพูดอยู่ทั้งชุด (ปุ่ม SKIP / Esc) / abort() ใช้ร่วมกัน
+func skip() -> void:
+	_typing = false
 	_panel.hide()
 	if _blocking:
 		_blocking = false
@@ -145,6 +168,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		get_viewport().set_input_as_handled()   # ไม่ให้ main.gd เห็นคลิกนี้ซ้ำ
 		_advance()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		get_viewport().set_input_as_handled()
+		skip()
 
 
 func _process(delta: float) -> void:
@@ -168,6 +194,7 @@ func _process(delta: float) -> void:
 			_panel.hide()
 
 	_hint.visible = _blocking and not _typing and fmod(_clock, 1.0) < 0.6
+	_skip.visible = _blocking
 
 
 func _show_text(text: String) -> void:
