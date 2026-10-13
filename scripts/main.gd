@@ -7,6 +7,8 @@ enum State { TITLE, DIALOGUE, HOLDING, WAITING, FIRED, ENDING }
 
 const HOLD_GAP := 1.8     # บล็อกที่ถือลอยเหนือยอดกองกี่เมตร (ยิ่งต่ำ ยิ่งตกแรงน้อย กองง่ายขึ้น)
 const BOUND := 3.0        # ขอบเขตที่เลื่อนบล็อกได้ (ตามขนาดพื้น)
+const STRAIN_AMP := 0.25  # เมาส์เลยขอบ = เครนตึง ชิ้นแกว่งสูงสุดกี่เมตร (กันเทคนิคตรึงชิ้นที่มุมให้ซ้อนตรงเป๊ะ)
+const STRAIN_RATE := 8.0  # ความเร็วที่การแกว่งเริ่ม/หยุด (ใช้ในสูตร 1 - exp(-rate * delta))
 const KILL_Y := -4.0      # ตกต่ำกว่านี้ = ถือว่าชิ้นนั้นหลุดจากกอง (สำรอง — ปกติโดนจับที่ _fell_off() ก่อนถึงพื้นลาน)
 const MAX_WAIT := 5.0     # รอบล็อกนิ่งนานสุดกี่วินาที
 const HARD_IMPACT := 10.0   # impact เกินนี้ = กระแทกหนัก (เสียงหนัก + สั่นจอ + ฝุ่น) ดู Block.hit
@@ -26,6 +28,9 @@ const TITLE_PILE := [
 @onready var ground: CSGBox3D = $Ground
 
 var crane: Crane
+var _strain := 0.0                  # 0 = เมาส์อยู่ในระยะเอื้อมเครน, 1 = เลยขอบเต็มที่ (ชิ้นที่ถือแกว่ง)
+var _strain_time := 0.0
+var _strain_phase := Vector4.ZERO   # เฟสการแกว่งของแต่ละชิ้น (สุ่มใหม่ใน _make_current)
 var _hold_basis := Basis.IDENTITY   # ทิศของชิ้นที่ถือ (main เป็นเจ้าของ: move_held_block() ตั้งทับทุกเฟรม ไม่งั้นการหมุนหาย)
 var guide: DropGuide
 var quota_marker: QuotaMarker
@@ -188,7 +193,7 @@ func _process(delta: float) -> void:
 	var holding := state == State.HOLDING
 	# ระหว่างลากหมุนกล้องไม่ต้องให้ชิ้นที่ถือวิ่งตามเมาส์
 	if holding and not camera.dragging:
-		move_held_block()
+		move_held_block(delta)
 
 	crane.update_crane(current if holding else null, tower_top + HOLD_GAP, delta)
 	_update_motor(holding, delta)
@@ -893,6 +898,8 @@ func _make_current(pos: Vector3) -> void:
 	current.position = pos
 	blocks_root.add_child(current)
 	_hold_basis = Basis.IDENTITY
+	_strain = 0.0
+	_strain_phase = Vector4(randf(), randf(), randf(), randf()) * TAU
 	current.hit.connect(_on_hit.bind(current))
 	sfx.play("clunk", -6.0)
 	if current.fragile and not _fragile_said:
@@ -952,7 +959,7 @@ func _reset_time() -> void:
 	items.coffee_pending = false
 
 
-func move_held_block() -> void:
+func move_held_block(delta: float) -> void:
 	var mouse := get_viewport().get_mouse_position()
 	var origin := camera.project_ray_origin(mouse)
 	var dir := camera.project_ray_normal(mouse)
@@ -961,11 +968,21 @@ func move_held_block() -> void:
 	if hit == null:
 		return
 	var p: Vector3 = hit
+	# เมาส์เลยระยะเอื้อมของเครน → ชิ้นแกว่ง (ขอบ/มุมจะได้ไม่เป็นจุดตรึงที่ซ้อนตรงเป๊ะทุกครั้ง)
+	var out := absf(p.x) > BOUND or absf(p.z) > BOUND
+	_strain = lerpf(_strain, 1.0 if out else 0.0, 1.0 - exp(-STRAIN_RATE * delta))
+	_strain_time += delta
+	# sine 2 ความถี่ต่อแกน (ไม่เป็นพหุคูณกัน) → แกว่งแบบเครนตึง จับจังหวะปล่อยให้ตรงเป๊ะไม่ได้
+	var sway := Vector2(
+		sin(_strain_time * 3.1 + _strain_phase.x) + 0.5 * sin(_strain_time * 7.3 + _strain_phase.y),
+		sin(_strain_time * 2.7 + _strain_phase.z) + 0.5 * sin(_strain_time * 6.1 + _strain_phase.w)
+	) * (STRAIN_AMP / 1.5 * _strain)
 	# ตั้งทั้ง transform (ทิศ + ตำแหน่ง) ไม่ใช่แค่ global_position ไม่งั้นทิศที่หมุนไว้ถูกทับกลับเป็นเดิมทุกเฟรม
+	# offset แกว่งบวกหลัง clamp (ไม่ clamp ซ้ำ ไม่งั้นครึ่งหนึ่งของการแกว่งถูกตัดกลับมาที่ขอบพอดี)
 	current.global_transform = Transform3D(_hold_basis, Vector3(
-		clampf(p.x, -BOUND, BOUND),
+		clampf(p.x, -BOUND, BOUND) + sway.x,
 		hold_y,
-		clampf(p.z, -BOUND, BOUND)
+		clampf(p.z, -BOUND, BOUND) + sway.y
 	))
 
 
@@ -1077,6 +1094,8 @@ func _refresh_items() -> void:
 	if weather != "":
 		parts.append(weather)
 	if state == State.HOLDING and current != null:
+		if _strain > 0.5:
+			parts.append("OUT OF REACH")
 		if current.fragile:
 			parts.append("FRAGILE!")
 		elif current.slippery:
