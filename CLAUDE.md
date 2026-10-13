@@ -109,7 +109,7 @@ xvfb-run -a -s "-screen 0 1280x720x24" godot --display-driver x11 --path . -s to
 `/day` เพิ่ม id + `DialogueBox.abort()` เพื่อตัด coroutine เก่าที่ค้างอยู่ (ไม่งั้น `spawn_block()` ซ้ำ) / **เขียน flow ใหม่ที่มี `await` ต้องเช็ค `_flow_id` ด้วย**
 
 **Pause:** `scripts/pause_menu.gd` (`PauseMenu`, layer 15, `PROCESS_MODE_ALWAYS`) — ปุ่ม `PAUSE` มุมขวาบน หรือ Esc / P
-หยุดได้เฉพาะ `HOLDING` / `WAITING` (`can_pause`) / ใช้ `get_tree().paused` → main, ฟิสิกส์, เสียงหยุดหมด / เมนู RESUME,
+หยุดได้เฉพาะ `HOLDING` / `WAITING` (`can_pause`) / **หยุดเองเมื่อเกมเสียโฟกัส** (`_notification` FOCUS_OUT — คลิกออกนอกเกม/สลับแท็บ ไม่ resume เอง) / ใช้ `get_tree().paused` → main, ฟิสิกส์, เสียงหยุดหมด / เมนู RESUME,
 QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดปิดเสียง (`SoundToggle`) โชว์เฉพาะหน้า `TITLE` (main ตั้ง `visible` ทุกเฟรม)
 
 **วัน/โควต้า:** `_start_day()` อ่านโควต้าจาก `GameData.DAYS[day - 1]` (ล้างกอง, รีเซ็ตตัวนับ, boss พูดต้นวัน
@@ -213,6 +213,9 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
   `normal` / `empty` เงาตัวหายเหลือแต่ตา / `eyes_turn` ตาเลื่อนลงมามอง) → `main._ending_cinematic()` (`ScreenFx.fade_to_black`
   + `show_eyes`) → `Settings.night_shift = true` → title ขึ้น `(night shift)` และบทวันแรกเปลี่ยนเป็น `Dialogue.NIGHT_FIRST_LINE`
 
+**คำแนะนำปุ่ม:** `ItemBar.set_hints()` โชว์ `Q/E SPIN / R FLIP / C VIEW` มุมซ้ายล่างตอน `HOLDING` จนกว่าจะปล่อยชิ้นครบ `HINT_DROPS` (8) ครั้งตั้งแต่เปิดเกม (`main._drops`)
+**เตือนชิ้นใกล้หมด:** แถบสถานะ `2 PIECES LEFT` / `1 PIECE LEFT` / `LAST PIECE!` (`main._refresh_items`), HUD `PIECES` ต่อท้าย ` !` เมื่อเหลือ ≤ 2, ชิ้นสุดท้าย boss พูด `COMMENTS.last_piece`
+
 **Item (Phase 3):** boss แจก `ItemData.GIVE_PER_DAY` (2) ชิ้นหลังบทต้นวัน เก็บได้ `MAX_SLOTS` (6) ช่อง ล้นถูกทิ้ง
 (คลังค้างข้ามวัน รีเซ็ตเมื่อเริ่มรอบใหม่) / ใช้ได้เฉพาะตอน `HOLDING`
 - `data/items.gd` (`ItemData`) — ข้อมูล item (ชื่อ, ชื่อสั้นบนปุ่ม, `weight` ความน่าจะเป็น, คำอธิบาย, ข้อความตอนใช้ไม่ได้)
@@ -235,7 +238,7 @@ QUIT TO TITLE (`quit_requested` → `_go_title()`) / ปุ่มเปิดป
 **ทดสอบด้วยสคริปต์แล้วอย่าลืมคืน `settings.cfg`** (probe ที่เล่นจนผ่านวันจะเขียนเกรดลงไฟล์จริงของผู้เล่น)
 
 **หน้า SETTINGS:** `SettingsPanel` (`scripts/settings_panel.gd`, CanvasLayer 16, `PROCESS_MODE_ALWAYS` ใช้ได้ตอน pause) เปิดจากปุ่ม SETTINGS ที่หน้า title และเมนู pause (main สร้างหลัง `PauseMenu` เพื่อให้ Esc ปิดหน้านี้ก่อน) /
-ค่าอยู่ใน `Settings`: `volume` (0-1 → `Settings.apply_audio()` ตั้ง bus 0 เป็น dB + mute แยกกันด้วยปุ่ม SND), `camera_sens` (0.5-2.0 คูณ `OrbitCamera.DRAG_SENS`),
+ค่าอยู่ใน `Settings`: `volume` (0-1 → `Settings.apply_audio()` ตั้ง bus 0 เป็น dB + mute แยกกันด้วยปุ่ม SND), `camera_sens` (0.5-2.0 คูณ `OrbitCamera.DRAG_SENS`), `text_speed` (0.5-3.0 คูณ `DialogueBox.CHARS_PER_SEC`), ปุ่ม FULLSCREEN (ไม่บันทึกลง cfg — เว็บเข้าเต็มจอได้เฉพาะตอนผู้เล่นกดเอง),
 `retro_look` (false = ปิด `PostFx` (dither + ลดสี) ผ่านกลุ่ม `retro_post` → `set_enabled()` และปิด vertex snapping ผ่าน `Psx.set_snap()` = ตั้ง `snap_grid` ของทุก material ใน cache เป็น `Psx.SNAP_OFF`)
 บันทึกเมื่อกด BACK / Esc / ปิด / **material ใหม่ที่สร้างหลังปิด snap ก็ได้ค่าปิดด้วย** (`Psx.snap_enabled`) / ใช้เมื่อ FPS บนเว็บไม่พอ
 
@@ -417,6 +420,10 @@ Main (Node3D)                ← scripts/main.gd
 | ลูกกลิ้งขึ้น / ลง | ซูมกล้องเข้า / ออก (`OrbitCamera.zoom`) |
 | Esc / P หรือปุ่ม PAUSE มุมขวาบน | หยุดเกม / เล่นต่อ (เฉพาะตอนถือหรือรอชิ้นนิ่ง) |
 | Esc หรือปุ่ม SKIP >> ตอน boss พูด | ข้ามบทพูดชุดนั้นทั้งชุด |
+| Space / Enter | เหมือนคลิกซ้ายบนบทพูด boss, หน้าสรุปผลงาน, หน้า FIRED / ENDING |
+| 1 / 2 / 3 … | เลือกการ์ดบนหน้าเลือกรางวัล / ข้อเสนอสินบน (`ItemChoice`) — ร้านของ boss ไม่รองรับ (กันกดพลาดเสียเงิน) |
+| C | คืนมุมกล้องเป็นมุมฉากที่ใกล้สุด + ซูม 1.0 (`OrbitCamera.reset_view()`) |
+| F11 | สลับเต็มจอ (`SettingsPanel`, ใช้ได้ทุกหน้า) |
 
 ---
 

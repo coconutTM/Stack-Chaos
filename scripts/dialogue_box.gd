@@ -2,7 +2,7 @@ class_name DialogueBox
 extends CanvasLayer
 
 # กล่องข้อความของ boss: เงาร่างมืดๆ + ตาเรืองแสง พูดแบบพิมพ์ทีละตัวอักษร
-# - say(lines)    โหมดบล็อก: คลิกซ้ายเพื่อข้ามการพิมพ์ / ไปบรรทัดถัดไป (ใช้ await ได้)
+# - say(lines)    โหมดบล็อก: คลิกซ้าย / Space / Enter เพื่อข้ามการพิมพ์ / ไปบรรทัดถัดไป (ใช้ await ได้)
 #                 ปุ่ม SKIP >> หรือ Esc = ข้ามบทชุดนี้ทั้งชุด (skip())
 # - comment(text) โหมดคอมเมนต์: ไม่บล็อกเกม โผล่มาแล้วหุบเองใน COMMENT_HOLD วินาที
 #   (อยู่ด้านบนจอ เว้นที่ให้ HUD ซ้ายบน เพื่อไม่บังแถบ item ด้านล่าง)
@@ -168,9 +168,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		get_viewport().set_input_as_handled()   # ไม่ให้ main.gd เห็นคลิกนี้ซ้ำ
 		_advance()
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		get_viewport().set_input_as_handled()
-		skip()
+	elif event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			get_viewport().set_input_as_handled()
+			skip()
+		elif event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
+			get_viewport().set_input_as_handled()
+			_advance()
 
 
 func _process(delta: float) -> void:
@@ -181,7 +185,7 @@ func _process(delta: float) -> void:
 
 	if _typing:
 		var before := int(_chars)
-		_chars += CHARS_PER_SEC * delta
+		_chars += CHARS_PER_SEC * Settings.text_speed * delta
 		var shown := mini(int(_chars), _label.text.length())
 		_label.visible_characters = shown
 		if shown > before:

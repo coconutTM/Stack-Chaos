@@ -196,6 +196,7 @@ const COMMENTS := {
 	"fragile": ["Careful with that one. Fragile.", "That is a TV. Do not drop it."],
 	"suspicious": ["I'm watching you.", "Every piece. I see every piece.", "Don't look at me. Look at the pile."],
 	"insured": ["Covered. This time.", "The company pays for that one. Once."],
+	"last_piece": ["Last one. Make it count.", "That's the last piece.", "No more after this one."],
 	"near": ["Almost there.", "A little more.", "Don't blow it now."],
 }
 

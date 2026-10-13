@@ -8,6 +8,7 @@ const PATH := "user://settings.cfg"
 static var muted := false
 static var volume := 1.0          # ความดังรวม 0-1 (ตั้งในหน้า SETTINGS) / muted คือปุ่ม SND ON/OFF แยกกัน
 static var camera_sens := 1.0     # ความไวตอนลากหมุนกล้อง (คูณ OrbitCamera.DRAG_SENS) 0.5-2.0
+static var text_speed := 1.0       # ความเร็วพิมพ์ตัวอักษรของ boss (คูณ DialogueBox.CHARS_PER_SEC) 0.5-3.0
 static var retro_look := true     # true = dither + vertex snapping แบบ PS1 / false = ปิด (เครื่องช้า/เว็บ) ภาพคมขึ้นและเบาลง
 static var night_shift := false   # เคยจบเกมครบ 5 วันแล้ว (ตอน title/บทพูดวันแรกเปลี่ยนไปนิดหน่อย)
 static var best_overtime := 0       # กะ OVERTIME ที่ผ่านได้มากสุดในรอบเดียว
@@ -22,6 +23,7 @@ static func load_all() -> void:
 	muted = cfg.get_value("audio", "muted", false)
 	volume = clampf(float(cfg.get_value("audio", "volume", 1.0)), 0.0, 1.0)
 	camera_sens = clampf(float(cfg.get_value("controls", "camera_sens", 1.0)), 0.5, 2.0)
+	text_speed = clampf(float(cfg.get_value("controls", "text_speed", 1.0)), 0.5, 3.0)
 	retro_look = bool(cfg.get_value("graphics", "retro_look", true))
 	night_shift = cfg.get_value("progress", "night_shift", false)
 	best_overtime = cfg.get_value("progress", "best_overtime", 0)
@@ -40,6 +42,7 @@ static func save_all() -> void:
 	cfg.set_value("audio", "muted", muted)
 	cfg.set_value("audio", "volume", volume)
 	cfg.set_value("controls", "camera_sens", camera_sens)
+	cfg.set_value("controls", "text_speed", text_speed)
 	cfg.set_value("graphics", "retro_look", retro_look)
 	cfg.set_value("progress", "night_shift", night_shift)
 	cfg.set_value("progress", "best_grades", best_grades)

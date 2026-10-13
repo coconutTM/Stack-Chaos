@@ -14,6 +14,7 @@ const GAP := 4.0
 var _buttons: Array[Button] = []
 var _info: Label
 var _next: Label
+var _controls: Label   # คำแนะนำปุ่มมุมซ้ายล่าง (main โชว์ช่วงแรกของเกม)
 var _root: Control
 var _inventory: Array = []
 var _status := ""
@@ -86,7 +87,27 @@ func _ready() -> void:
 	_next.add_theme_constant_override("outline_size", 4)
 	_root.add_child(_next)
 
+	_controls = Label.new()
+	_controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_controls.text = "Q/E SPIN\nR   FLIP\nC   VIEW"
+	_controls.anchor_top = 1.0
+	_controls.anchor_bottom = 1.0
+	_controls.offset_left = 4.0
+	_controls.offset_right = 86.0
+	_controls.offset_top = -40.0
+	_controls.offset_bottom = -4.0
+	_controls.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_controls.modulate.a = 0.7
+	_controls.add_theme_font_size_override("font_size", 8)
+	_controls.add_theme_color_override("font_outline_color", Color.BLACK)
+	_controls.add_theme_constant_override("outline_size", 4)
+	_root.add_child(_controls)
+
 	visible = false
+
+
+func set_hints(on: bool) -> void:
+	_controls.visible = on
 
 
 # inventory = id ของ item / usable = กดใช้ได้ไหม / status = ข้อความสถานะ / next_text = รายการชิ้นถัดไป ("" = ซ่อน)

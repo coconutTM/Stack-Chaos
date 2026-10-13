@@ -89,6 +89,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+# คลิกออกนอกเกม / สลับแท็บ (เว็บ) / สลับหน้าต่าง → หยุดเกมให้เอง (ไม่ resume เองตอนกลับมา ต้องกด RESUME)
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		if not get_tree().paused and can_pause.is_valid() and can_pause.call():
+			set_paused(true)
+
+
 func set_paused(on: bool) -> void:
 	get_tree().paused = on
 	_menu.visible = on

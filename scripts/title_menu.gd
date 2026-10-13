@@ -27,15 +27,17 @@ const CREDITS_LINES := [
 const HOW_TO_LINES := [
 	"Mouse: move the piece",
 	"Left click: drop it",
-	"Right click: spin it 45 degrees",
-	"Shift + right click: flip it",
-	"Mouse wheel: zoom",
-	"Right drag: look around the pile",
+	"Right click / Q / E: spin it",
+	"Shift+right click / R: flip it",
+	"Right drag: look around",
+	"Wheel: zoom  C: reset view",
+	"Click item slot: use item",
+	"Red guide: it will miss the pile",
 	"P / Esc: pause",
 	"",
-	"Reach the quota height before",
-	"you run out of pieces.",
-	"Lose 3 pieces and you're fired.",
+	"Reach the quota before you run",
+	"out of pieces. Lose 3 pieces",
+	"or break the TV: you're fired.",
 ]
 
 var _root: Control

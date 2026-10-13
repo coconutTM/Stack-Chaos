@@ -6,6 +6,7 @@ extends Node3D
 enum State { TITLE, DIALOGUE, HOLDING, WAITING, FIRED, ENDING }
 
 const HOLD_GAP := 1.8     # บล็อกที่ถือลอยเหนือยอดกองกี่เมตร (ยิ่งต่ำ ยิ่งตกแรงน้อย กองง่ายขึ้น)
+const HINT_DROPS := 8     # โชว์คำแนะนำปุ่มจนกว่าจะปล่อยชิ้นครบกี่ครั้ง (นับตั้งแต่เปิดเกม)
 const BOUND := 3.0        # ขอบเขตที่เลื่อนบล็อกได้ (ตามขนาดพื้น)
 const STRAIN_AMP := 0.65  # เมาส์เลยขอบ = เครนตึง ชิ้นแกว่งสูงสุดกี่เมตร (กันเทคนิคตรึงชิ้นที่มุมให้ซ้อนตรงเป๊ะ)
 const STRAIN_RATE := 8.0  # ความเร็วที่การแกว่งเริ่ม/หยุด (ใช้ในสูตร 1 - exp(-rate * delta))
@@ -31,6 +32,7 @@ var crane: Crane
 var _strain := 0.0                  # 0 = เมาส์อยู่ในระยะเอื้อมเครน, 1 = เลยขอบเต็มที่ (ชิ้นที่ถือแกว่ง)
 var _strain_time := 0.0
 var _strain_phase := Vector4.ZERO   # เฟสการแกว่งของแต่ละชิ้น (สุ่มใหม่ใน _make_current)
+var _drops := 0                     # ปล่อยชิ้นไปแล้วกี่ครั้งตั้งแต่เปิดเกม (ไว้ซ่อนคำแนะนำปุ่ม)
 var _hold_basis := Basis.IDENTITY   # ทิศของชิ้นที่ถือ (main เป็นเจ้าของ: move_held_block() ตั้งทับทุกเฟรม ไม่งั้นการหมุนหาย)
 var guide: DropGuide
 var quota_marker: QuotaMarker
@@ -278,6 +280,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					_spin_held(45.0)
 				KEY_R:
 					_flip_held()
+		elif (state == State.FIRED or state == State.ENDING) and event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER] and _screen_ready():
+			_go_title()
 		return
 
 	if not (event is InputEventMouseButton and event.pressed):
@@ -291,6 +295,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			match event.button_index:
 				MOUSE_BUTTON_LEFT:        # คลิกซ้าย = ปล่อย
 					current.release()
+					_drops += 1
 					sfx.play("release")
 					items.on_release()
 					state = State.WAITING
@@ -888,6 +893,8 @@ func spawn_block() -> void:
 	_make_current(Vector3(0, tower_top + HOLD_GAP, 0))
 	state = State.HOLDING
 	update_ui()
+	if pieces_used == max_pieces:
+		_comment("last_piece", true)
 
 
 # สร้างชิ้นที่ถือจากถุง / ตั้งตำแหน่งก่อน add_child ไม่ให้ชิ้นเทเลพอร์ตจาก (0,0,0) ขึ้นมา (blocks_root อยู่ที่จุดกำเนิด)
@@ -1085,6 +1092,8 @@ func _refresh_items() -> void:
 	if not playing:
 		return
 
+	item_bar.set_hints(state == State.HOLDING and _drops < HINT_DROPS)
+
 	var parts: Array[String] = []
 	if items.coffee_pending:
 		parts.append("COFFEE: SLOW-MO" if state == State.WAITING else "COFFEE READY")
@@ -1094,6 +1103,11 @@ func _refresh_items() -> void:
 	if weather != "":
 		parts.append(weather)
 	if state == State.HOLDING and current != null:
+		var left := max_pieces - pieces_used   # ไม่นับชิ้นที่ถืออยู่
+		if left == 0:
+			parts.append("LAST PIECE!")
+		elif left <= 2:
+			parts.append("%d PIECE%s LEFT" % [left, "" if left == 1 else "S"])
 		if _strain > 0.5:
 			parts.append("OUT OF REACH")
 		if current.fragile:
@@ -1124,6 +1138,8 @@ func update_ui() -> void:
 		day_text, score, _shown_height(tower_top), _shown_height(quota_height),
 		failed_attempts, GameData.MAX_FAILS, pieces_used, max_pieces
 	]
+	if max_pieces - pieces_used <= 2:
+		score_label.text += " !"
 	var today := modifiers.label_text()
 	if today != "":
 		score_label.text += "\nTODAY: " + today

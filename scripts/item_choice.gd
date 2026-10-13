@@ -18,6 +18,7 @@ var _hint: Label
 var _desc: Label
 var _row: HBoxContainer
 var _open := false
+var _ids: Array[String] = []   # id ของการ์ดตามลำดับ (กดเลข 1-9 เลือกได้)
 
 
 func _ready() -> void:
@@ -77,7 +78,9 @@ func choose(ids: Array, boss_line: String) -> String:
 func offer(title: String, boss_line: String, cards: Array, hint: String) -> String:
 	for c in _row.get_children():
 		c.queue_free()
+	_ids.clear()
 	for c in cards:
+		_ids.append(c.id)
 		var b := make_card(c.name, c.desc, c.color, c.get("footer", ""), c.get("icon"), c.get("icon_scale", 1))
 		var id: String = c.id
 		b.pressed.connect(func() -> void: picked.emit(id))
@@ -88,7 +91,7 @@ func offer(title: String, boss_line: String, cards: Array, hint: String) -> Stri
 	_row.offset_right = width * 0.5
 	_title.text = title
 	_boss.text = '"%s"' % boss_line
-	_hint.text = hint
+	_hint.text = "%s  (1-%d)" % [hint, cards.size()]
 	_desc.text = ""
 	_open = true
 	visible = true
@@ -174,6 +177,15 @@ static func make_card(card_name: String, card_desc: String, accent: Color, foote
 static func bind_hover(card: Button, label: Label) -> void:
 	card.mouse_entered.connect(func() -> void: label.text = card.get_meta("desc"))
 	card.mouse_exited.connect(func() -> void: label.text = "")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _open or not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	var i: int = event.physical_keycode - KEY_1
+	if i >= 0 and i < _ids.size():
+		get_viewport().set_input_as_handled()
+		picked.emit(_ids[i])
 
 
 # ตัดทิ้งทันที (คำสั่ง /day) ให้ coroutine ที่ await choose() ตื่นแล้วเลิกเอง (main เช็ค _flow_id)

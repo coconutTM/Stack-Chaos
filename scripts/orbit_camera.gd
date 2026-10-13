@@ -30,6 +30,8 @@ var _trauma := 0.0            # ความแรงสั่นจอ 0-1 (ส
 var _focus_y := 0.0
 var _zoom := 1.0              # ค่าซูมที่ลื่นแล้ว (ตามเป้า zoom)
 var _right_down := false
+var _resetting := false      # กำลังหมุนกลับมุมฉาก (กด C)
+var _reset_yaw := 0.0
 var _drag_dist := 0.0
 
 
@@ -41,6 +43,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_focus_y = lerpf(_focus_y, target_y, 1.0 - exp(-FOLLOW * delta))
 	_zoom = lerpf(_zoom, zoom, 1.0 - exp(-ZOOM_FOLLOW * delta))
+	if _resetting:
+		yaw = lerp_angle(yaw, _reset_yaw, 1.0 - exp(-ZOOM_FOLLOW * delta))
+		if absf(angle_difference(yaw, _reset_yaw)) < 0.005:
+			yaw = _reset_yaw
+			_resetting = false
 	_update_transform()
 
 	# สั่นจอด้วย h_offset/v_offset (ไม่ยุ่งกับ look_at)
@@ -60,7 +67,16 @@ func shake(amount: float) -> void:
 	_trauma = minf(1.0, _trauma + amount)
 
 
+# คืนมุมกล้องเป็นมุมฉากที่ใกล้สุด (มองตรงขอบแท่น เล็งง่าย) + ซูม 1.0
+func reset_view() -> void:
+	zoom = 1.0
+	_reset_yaw = snappedf(yaw, PI / 2.0)
+	_resetting = true
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if can_zoom and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_C:
+		reset_view()
 	if can_zoom and event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			zoom = clampf(zoom / ZOOM_STEP, ZOOM_MIN, ZOOM_MAX)
@@ -81,6 +97,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_drag_dist += event.relative.length()
 		if _drag_dist > DRAG_THRESHOLD:
 			dragging = true
+			_resetting = false
 		if dragging:
 			yaw -= event.relative.x * DRAG_SENS * Settings.camera_sens   # ลากขวา = ฉากหมุนตามเมาส์
 

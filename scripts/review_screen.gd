@@ -165,7 +165,10 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	var click: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT
+	var key: bool = event is InputEventKey and event.pressed and not event.echo \
+		and event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]
+	if click or key:
 		get_viewport().set_input_as_handled()
 		if not _complete:
 			_reveal_all()
