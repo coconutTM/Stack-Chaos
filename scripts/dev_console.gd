@@ -1,7 +1,7 @@
 class_name DevConsole
 extends CanvasLayer
 
-# หน้าต่างพิมพ์คำสั่งลับสำหรับนักพัฒนา: กด ` (ปุ่มซ้ายเลข 1) หรือ F1 เปิด/ปิด, Esc ปิด
+# หน้าต่างพิมพ์คำสั่งลับสำหรับนักพัฒนา: กด / (เปิดเฉพาะตอนปิดอยู่) หรือ F1 เปิด/ปิด, Esc ปิด
 # เปิดอยู่ = หยุดเกม (get_tree().paused) / คำสั่งลงทะเบียนจาก main.gd ด้วย register() เช่น /day 3
 # ข้อความเป็นภาษาอังกฤษ (ฟอนต์ไม่มีอักษรไทย)
 
@@ -61,12 +61,13 @@ func is_open() -> bool:
 	return _panel.visible
 
 
-# ดักปุ่มเปิด/ปิดใน _input() (ก่อน LineEdit จะพิมพ์ ` ลงไป) / physical_keycode ใช้ได้แม้ตั้งคีย์บอร์ดภาษาไทย
+# ดักปุ่มเปิด/ปิดใน _input() (ก่อน LineEdit จะพิมพ์ / ลงไป) / physical_keycode ใช้ได้แม้ตั้งคีย์บอร์ดภาษาไทย
+# "/" ใช้เปิดอย่างเดียว — ตอนเปิดอยู่ต้องปล่อยให้พิมพ์ได้ (คำสั่งขึ้นต้นด้วย /) จึงปิดด้วย F1 / Esc
 func _input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return
-	if key.physical_keycode == KEY_QUOTELEFT or key.keycode == KEY_F1:
+	if key.keycode == KEY_F1 or (key.physical_keycode == KEY_SLASH and not is_open()):
 		set_open(not is_open())
 		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_ESCAPE and is_open():

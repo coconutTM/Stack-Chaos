@@ -102,7 +102,7 @@ xvfb-run -a -s "-screen 0 1280x720x24" godot --display-driver x11 --path . -s to
 ต้นทุกวัน (`_start_day()` ล้างกอง/ตั้งค่าใต้จอดำ), ขึ้นหน้าโดนไล่ออก, และ `_go_title()` (กลับหน้าแรกจาก FIRED / ENDING / pause)
 ระหว่างจอมืด `state = DIALOGUE` เพื่อกันคลิก / ฉากจบใช้ `fade_to_black()` + ตาเรือง แยกกัน (layer 2)
 
-**Dev console (ลับ):** `scripts/dev_console.gd` (`DevConsole`, layer 30) — กด `` ` `` (ปุ่มซ้ายเลข 1 ใช้ `physical_keycode` ได้แม้คีย์บอร์ดไทย) หรือ F1
+**Dev console (ลับ):** `scripts/dev_console.gd` (`DevConsole`, layer 30) — กด `/` (ใช้ `physical_keycode` ได้แม้คีย์บอร์ดไทย / **เปิดอย่างเดียว** เพราะตอนเปิดต้องพิมพ์ `/` ได้) หรือ F1
 เปิด/ปิด, Esc ปิด / เปิดอยู่ = หยุดเกม / `register(name, usage, callable)` — main ลงทะเบียนคำสั่งใน `_ready()`: **`/day N`** (เริ่มรอบใหม่ที่วัน N
 ใช้ได้ทุกหน้า), **`/give <item|all>`** (`ItemSystem.give()`), **`/money N`** (ตั้งเงิน), ในตัว `/help` `/clear` / ไม่มีอะไรบอกผู้เล่นว่ามี (ลับ) / **เพิ่มคำสั่ง = เพิ่ม `register()` + เมธอด**
 **`_flow_id`** ใน main: `_start_day()` / `_end_day()` / `_go_title()` จำ id ตอนเริ่มแล้วเช็คหลังทุก `await` (`if flow != _flow_id: return`) —
