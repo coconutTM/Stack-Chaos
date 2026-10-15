@@ -14,6 +14,17 @@ static var night_shift := false   # เคยจบเกมครบ 5 วั�
 static var best_overtime := 0       # กะ OVERTIME ที่ผ่านได้มากสุดในรอบเดียว
 static var endings_seen: Array = []   # id ฉากจบที่เคยดู ("boss", "corrupt")
 static var best_grades: Array = [-1, -1, -1, -1, -1]   # เกรดดีสุดของแต่ละวัน (index ใน GameData.GRADES, 0 = S, -1 = ยังไม่เคยผ่าน)
+static var touch := false         # โหมดสัมผัส (มือถือ/แท็บเล็ต): ลากเล็ง + ปุ่ม DROP + สองนิ้วหมุน/ซูมกล้อง / ไม่บันทึกลง cfg
+
+
+# ข้อความที่โชว์ผู้เล่น: โหมดสัมผัสเปลี่ยนคำว่า click เป็น tap
+static func wording(text: String) -> String:
+	return text.replace("click", "tap") if touch else text
+
+
+# เดาว่าเป็นมือถือจากแพลตฟอร์มของเบราว์เซอร์ (ไม่ชัวร์ก็รอจับการแตะจอครั้งแรกใน main._input)
+static func detect_touch() -> void:
+	touch = OS.has_feature("web_android") or OS.has_feature("web_ios") or OS.has_feature("android") or OS.has_feature("ios")
 
 
 static func load_all() -> void:

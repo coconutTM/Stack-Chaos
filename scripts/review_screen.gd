@@ -75,7 +75,7 @@ func show_review(data: Dictionary) -> void:
 		_rows[i].text = _format_row(rows[i]) if i < rows.size() else ""
 	_boss.text = '"%s"' % data.get("boss", "") if data.get("boss", "") != "" else ""
 	_boss.add_theme_color_override("font_color", Color(0.92, 0.9, 0.78))
-	_hint.text = data.get("hint", "click to continue")
+	_hint.text = Settings.wording(data.get("hint", "click to continue"))
 	_hint.add_theme_color_override("font_color", Color(0.6, 0.5, 0.15))
 
 	_complete = false

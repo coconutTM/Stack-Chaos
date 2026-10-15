@@ -12,6 +12,7 @@ signal closed
 const SLOT := 38.0   # ช่องคลังสี่เหลี่ยมพอดีไอคอน (ขนาดเดียวกับ ItemBar)
 const SLOT_GAP := 4.0
 
+var _armed_slot := -1   # สัมผัส: ช่องคลังที่แตะไปแล้วครั้งหนึ่ง (แตะซ้ำ = ขาย)
 var buy: Callable
 var sell: Callable
 
@@ -55,7 +56,7 @@ func _ready() -> void:
 	_desc.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 
 	var sell_title := _label(8, 164.0, 10.0)
-	sell_title.text = "YOUR ITEMS - CLICK ONE TO SELL"
+	sell_title.text = Settings.wording("YOUR ITEMS - CLICK ONE TO SELL")
 	sell_title.add_theme_color_override("font_color", Color(0.6, 0.5, 0.15))
 
 	var width := ItemData.MAX_SLOTS * SLOT + (ItemData.MAX_SLOTS - 1) * SLOT_GAP
@@ -120,8 +121,8 @@ func open(stock: Array, cash: int, boss_line: String, inventory: Array) -> void:
 		var data: Dictionary = ItemData.ITEMS[id]
 		var card := ItemChoice.make_card(data.name, data.desc, data.color, "$%d" % data.price, ItemData.icon(id))
 		var item_id: String = id
-		card.pressed.connect(_on_card.bind(item_id))
 		ItemChoice.bind_hover(card, _desc)
+		ItemChoice.bind_confirm(card, _desc, _on_card.bind(item_id))
 		_row.add_child(card)
 		_cards[item_id] = card
 	var width := stock.size() * ItemChoice.CARD_W + (stock.size() - 1) * ItemChoice.GAP
@@ -151,6 +152,11 @@ func _on_card(id: String) -> void:
 func _on_slot(index: int) -> void:
 	if index >= _inventory.size():
 		return
+	if Settings.touch and _armed_slot != index:   # สัมผัส: แตะครั้งแรกโชว์ราคา แตะซ้ำถึงขาย
+		_armed_slot = index
+		_on_slot_hover(index)
+		return
+	_armed_slot = -1
 	_apply(sell.call(index))
 	_desc.text = ""
 

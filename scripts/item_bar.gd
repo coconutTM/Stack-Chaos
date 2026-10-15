@@ -107,6 +107,8 @@ func _ready() -> void:
 
 
 func set_hints(on: bool) -> void:
+	if on:   # ผู้เล่นอาจถูกจับว่าเป็นมือถือทีหลัง (แตะจอครั้งแรก) จึงเลือกข้อความทุกครั้งที่โชว์
+		_controls.text = "DRAG: AIM\n2 FINGERS:\nLOOK / ZOOM" if Settings.touch else "Q/E SPIN\nR   FLIP\nC   VIEW"
 	_controls.visible = on
 
 

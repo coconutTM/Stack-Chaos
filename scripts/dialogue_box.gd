@@ -107,6 +107,7 @@ func say(lines: Array) -> void:
 		return
 	_blocking = true
 	_comment_left = 0.0
+	_hint.text = Settings.wording("click >")
 	_place(false)
 	_lines = lines
 	_idx = 0

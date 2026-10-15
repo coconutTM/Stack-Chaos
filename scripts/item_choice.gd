@@ -71,7 +71,7 @@ func choose(ids: Array, boss_line: String) -> String:
 	for id in ids:
 		var data: Dictionary = ItemData.ITEMS[id]
 		cards.append({"id": id, "name": data.name, "desc": data.desc, "color": data.color, "icon": ItemData.icon(id), "icon_scale": 2})
-	return await offer("CHOOSE A REWARD", boss_line, cards, "click a card to take it")
+	return await offer("CHOOSE A REWARD", boss_line, cards, Settings.wording("click a card to take it"))
 
 
 # การ์ดทั่วไป: cards = [{"id", "name", "desc", "color", "footer"(ไม่ใส่ก็ได้)}] / คืน id ของใบที่เลือก ("" = ถูกตัดด้วย abort)
@@ -83,15 +83,15 @@ func offer(title: String, boss_line: String, cards: Array, hint: String) -> Stri
 		_ids.append(c.id)
 		var b := make_card(c.name, c.desc, c.color, c.get("footer", ""), c.get("icon"), c.get("icon_scale", 1))
 		var id: String = c.id
-		b.pressed.connect(func() -> void: picked.emit(id))
 		bind_hover(b, _desc)
+		bind_confirm(b, _desc, func() -> void: picked.emit(id))
 		_row.add_child(b)
 	var width := cards.size() * CARD_W + (cards.size() - 1) * GAP
 	_row.offset_left = -width * 0.5
 	_row.offset_right = width * 0.5
 	_title.text = title
 	_boss.text = '"%s"' % boss_line
-	_hint.text = "%s  (1-%d)" % [hint, cards.size()]
+	_hint.text = "tap a card to read it, tap again to pick" if Settings.touch else "%s  (1-%d)" % [hint, cards.size()]
 	_desc.text = ""
 	_open = true
 	visible = true
@@ -177,6 +177,18 @@ static func make_card(card_name: String, card_desc: String, accent: Color, foote
 static func bind_hover(card: Button, label: Label) -> void:
 	card.mouse_entered.connect(func() -> void: label.text = card.get_meta("desc"))
 	card.mouse_exited.connect(func() -> void: label.text = "")
+
+
+# กดการ์ด: บนคอมทำทันที / โหมดสัมผัส (ไม่มี hover) แตะครั้งแรก = โชว์คำอธิบาย, แตะใบเดิมซ้ำ = ยืนยัน (กันนิ้วพลาดเสียเงิน)
+static func bind_confirm(card: Button, label: Label, action: Callable) -> void:
+	card.pressed.connect(func() -> void:
+		if Settings.touch and not card.get_meta("armed", false):
+			for c in card.get_parent().get_children():
+				c.set_meta("armed", false)
+			card.set_meta("armed", true)
+			label.text = card.get_meta("desc")
+			return
+		action.call())
 
 
 func _unhandled_input(event: InputEvent) -> void:

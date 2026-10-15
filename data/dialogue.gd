@@ -61,6 +61,13 @@ const KIND_INTRO := {
 	Block.Kind.TOILET: ["Toilets. Don't ask where they came from. Odd shape, heavy base."],
 }
 
+# วันที่ 1 บนมือถือ: แทนบรรทัดที่ 2-4 ของ DAY_INTRO[1] (เมาส์/คลิกขวา) — main._intro_lines() สลับให้เมื่อ Settings.touch
+const DAY1_TOUCH_CONTROLS := [
+	"That's your crane. Drag your finger to carry the trash. Hit DROP to let it go.",
+	"SPIN turns a piece. FLIP lays it on its side. Pinch with two fingers to zoom.",
+	"Drag with two fingers to look around the pile. VIEW snaps the camera straight.",
+]
+
 # แจก item ต้นวัน (หลัง DAY_INTRO) — วันที่ 1 มีสอนใช้ / {items} = ชื่อ item ที่ได้
 const ITEM_GIVE_FIRST := [
 	"Here. Two tools of the trade: {items}.",

@@ -14,6 +14,7 @@ const KILL_Y := -4.0      # ตกต่ำกว่านี้ = ถือว�
 const MAX_WAIT := 5.0     # รอบล็อกนิ่งนานสุดกี่วินาที
 const HARD_IMPACT := 10.0   # impact เกินนี้ = กระแทกหนัก (เสียงหนัก + สั่นจอ + ฝุ่น) ดู Block.hit
 const RESTART_DELAY := 0.3  # หน่วงหลังขึ้นหน้าจบก่อนรับคลิก (กันเผลอคลิกข้าม)
+const TOUCH_SCALE_3D := 0.5 # โหมดสัมผัส: เรนเดอร์ 3D ที่ครึ่งความละเอียด (GPU มือถือไม่ไหวถ้าเต็มจอ dpr 3) UI 2D ไม่โดน
 const TITLE_SPIN := 0.12    # ความเร็วกล้องหมุนรอบกองตัวอย่างตอนอยู่หน้า title (เรเดียน/วินาที)
 const TITLE_PILE_TOP := 3.0 # ความสูงที่กล้อง/ไฟโฟกัสตอน title (กองตัวอย่างสูงราว 4-5 ม.)
 # กองตัวอย่างหน้า title: [ชนิด, ตำแหน่ง x, z] ปล่อยทีละชิ้นจากสูง (ไล่ความสูงเอง) แล้วให้ฟิสิกส์จัดกองเอง
@@ -33,11 +34,14 @@ var _strain := 0.0                  # 0 = เมาส์อยู่ในร�
 var _strain_time := 0.0
 var _strain_phase := Vector4.ZERO   # เฟสการแกว่งของแต่ละชิ้น (สุ่มใหม่ใน _make_current)
 var _drops := 0                     # ปล่อยชิ้นไปแล้วกี่ครั้งตั้งแต่เปิดเกม (ไว้ซ่อนคำแนะนำปุ่ม)
+var _aim_pos := Vector2.ZERO       # โหมดสัมผัส: จุดบนจอที่นิ้วลากเล็งไว้ (ปล่อยนิ้วแล้วชิ้นยังค้างตรงนั้น)
 var _hold_basis := Basis.IDENTITY   # ทิศของชิ้นที่ถือ (main เป็นเจ้าของ: move_held_block() ตั้งทับทุกเฟรม ไม่งั้นการหมุนหาย)
 var guide: DropGuide
 var quota_marker: QuotaMarker
 var dialogue: DialogueBox
 var item_bar: ItemBar
+var touch_controls: TouchControls
+var _rotate_notice: ColorRect   # โหมดสัมผัส + จอแนวตั้ง: ป้ายให้หมุนจอ
 var height_meter: HeightMeter
 var review: ReviewScreen
 var title_menu: TitleMenu
@@ -88,6 +92,7 @@ var _flow_id := 0            # เพิ่มทุกครั้งที่ 
 
 func _ready() -> void:
 	Settings.load_all()
+	Settings.detect_touch()
 	Settings.apply_audio()
 	Psx.set_snap(Settings.retro_look)
 	GameTheme.apply(get_tree().root)
@@ -137,6 +142,14 @@ func _ready() -> void:
 	item_bar = ItemBar.new()
 	add_child(item_bar)
 	item_bar.slot_pressed.connect(_on_item_slot)
+	touch_controls = TouchControls.new()
+	add_child(touch_controls)
+	touch_controls.drop_pressed.connect(_drop_current)
+	touch_controls.spin_pressed.connect(func() -> void: if state == State.HOLDING: _spin_held(45.0))
+	touch_controls.flip_pressed.connect(func() -> void: if state == State.HOLDING: _flip_held())
+	touch_controls.view_pressed.connect(func() -> void: camera.reset_view())
+	_build_rotate_notice()
+	_apply_touch_mode()
 	height_meter = HeightMeter.new()
 	add_child(height_meter)
 	items.used.connect(func(ok: bool) -> void: sfx.play("item_use" if ok else "deny"))
@@ -208,6 +221,8 @@ func _process(delta: float) -> void:
 	height_meter.visible = quota_marker.visible
 	height_meter.set_values(tower_top, best_height, quota_height)
 	_refresh_items()
+	touch_controls.visible = Settings.touch and state == State.HOLDING
+	_rotate_notice.visible = Settings.touch and get_viewport().get_visible_rect().size.y > get_viewport().get_visible_rect().size.x
 	sound_toggle.visible = state == State.TITLE   # ปุ่มเปิด/ปิดเสียงมีเฉพาะหน้าแรก
 
 
@@ -269,6 +284,41 @@ func _physics_process(delta: float) -> void:
 			_advance_or_end()
 
 
+# แตะจอครั้งแรก = เป็นอุปกรณ์สัมผัสแน่ (ครอบคลุมแท็บเล็ต/เบราว์เซอร์ที่ OS.has_feature เดาไม่ได้)
+func _input(event: InputEvent) -> void:
+	if not Settings.touch and event is InputEventScreenTouch:
+		Settings.touch = true
+		_apply_touch_mode()
+
+
+# โหมดสัมผัส: ลดความละเอียด 3D / ปิดโหมดเดิมคืนเมื่อไม่ใช่ (เรียกตอนเปิดเกมและตอนจับการแตะครั้งแรก)
+func _apply_touch_mode() -> void:
+	get_viewport().scaling_3d_scale = TOUCH_SCALE_3D if Settings.touch else 1.0
+	if Settings.touch and _aim_pos == Vector2.ZERO:
+		_aim_pos = get_viewport().get_visible_rect().size * 0.5
+
+
+# ป้าย "หมุนจอ" ทับทุกอย่าง (โชว์เฉพาะโหมดสัมผัสที่จอแนวตั้ง) / กินคลิกกันเผลอแตะเกมข้างหลัง
+func _build_rotate_notice() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 25
+	add_child(layer)
+	_rotate_notice = ColorRect.new()
+	_rotate_notice.color = Color.BLACK
+	_rotate_notice.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_rotate_notice.mouse_filter = Control.MOUSE_FILTER_STOP
+	_rotate_notice.visible = false
+	layer.add_child(_rotate_notice)
+	var l := Label.new()
+	l.text = "ROTATE YOUR PHONE"
+	l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_size_override("font_size", 16)
+	_rotate_notice.add_child(l)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	# คีย์สำรองหมุน/พลิกชิ้นที่ถือ (physical_keycode ใช้ได้แม้ตั้งคีย์บอร์ดภาษาไทย)
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -284,6 +334,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			_go_title()
 		return
 
+	# โหมดสัมผัส: นิ้วแตะ/ลาก = เล็งเท่านั้น (ปล่อยชิ้นด้วยปุ่ม DROP) / นิ้วที่ลากบนปุ่ม UI ไม่มาถึงตรงนี้
+	if Settings.touch and state == State.HOLDING and not camera.dragging:
+		if event is InputEventMouseMotion:
+			_aim_pos = event.position
+			return
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				_aim_pos = event.position
+			return
+
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 
@@ -294,19 +354,26 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.HOLDING:
 			match event.button_index:
 				MOUSE_BUTTON_LEFT:        # คลิกซ้าย = ปล่อย
-					current.release()
-					_drops += 1
-					sfx.play("release")
-					items.on_release()
-					state = State.WAITING
-					wait_time = 0.0
-					if items.coffee_pending:
-						Engine.time_scale = 0.5   # Coffee: สโลว์ 50% จนชิ้นนี้นิ่ง
-					if _is_tutorial() and not _first_drop_said:
-						_first_drop_said = true
-						_comment("tutorial_drop")
+					_drop_current()
 				MOUSE_BUTTON_MIDDLE:      # คลิกกลาง = พลิกตะแคง (ลูกกลิ้งใช้ซูมกล้องใน orbit_camera.gd)
 					_flip_held()
+
+
+# ปล่อยชิ้นที่ถือ (คลิกซ้ายบนคอม / ปุ่ม DROP บนมือถือ)
+func _drop_current() -> void:
+	if state != State.HOLDING or current == null:
+		return
+	current.release()
+	_drops += 1
+	sfx.play("release")
+	items.on_release()
+	state = State.WAITING
+	wait_time = 0.0
+	if items.coffee_pending:
+		Engine.time_scale = 0.5   # Coffee: สโลว์ 50% จนชิ้นนี้นิ่ง
+	if _is_tutorial() and not _first_drop_said:
+		_first_drop_said = true
+		_comment("tutorial_drop")
 
 
 # คลิกขวาสั้นๆ (ไม่ลาก) = หมุนชิ้นที่ถือ 45° / Shift + คลิกขวา = พลิกตะแคง / ลากค้าง = หมุนกล้อง (orbit_camera.gd)
@@ -418,7 +485,7 @@ func _start_day(retry := false) -> void:
 	var given := items.grant_daily()
 	if not given.names.is_empty():
 		sfx.play("item_get")
-	var give_lines: Array = Dialogue.ITEM_GIVE_FIRST if day == 1 else Dialogue.ITEM_GIVE
+	var give_lines: Array = Dialogue.ITEM_GIVE_FIRST.map(Settings.wording) if day == 1 else Dialogue.ITEM_GIVE
 	if not given.names.is_empty():
 		await dialogue.say(_lines(give_lines, {"items": ", ".join(given.names)}))
 		if flow != _flow_id:
@@ -573,7 +640,7 @@ func _offer_bribe(cost: int) -> bool:
 	]
 	var level := GameData.suspicion_level(suspicion)
 	var pool: Array = [Dialogue.BRIBE_OFFER, Dialogue.BRIBE_OFFER_WARY, Dialogue.BRIBE_OFFER_PARANOID][level]
-	var hint: String = ["click a card", "he's getting suspicious", "he's watching you closely"][level]
+	var hint: String = [Settings.wording("click a card"), "he's getting suspicious", "he's watching you closely"][level]
 	var line: String = _lines([pool.pick_random()], {"cost": cost})[0]
 	var pick: String = await item_choice.offer("A QUIET WORD", line, cards, hint)
 	return pick == "pay"
@@ -680,7 +747,7 @@ func _spawn_title_pile() -> void:
 
 
 func _show_screen(text: String) -> void:
-	game_over_label.text = text
+	game_over_label.text = Settings.wording(text)
 	game_over_label.show()
 	_screen_at_msec = Time.get_ticks_msec()
 
@@ -967,7 +1034,7 @@ func _reset_time() -> void:
 
 
 func move_held_block(delta: float) -> void:
-	var mouse := get_viewport().get_mouse_position()
+	var mouse := _aim_pos if Settings.touch else get_viewport().get_mouse_position()
 	var origin := camera.project_ray_origin(mouse)
 	var dir := camera.project_ray_normal(mouse)
 	var hold_y := tower_top + HOLD_GAP
@@ -1075,6 +1142,12 @@ func _intro_lines() -> Array:
 		lines = Dialogue.OVERTIME_FIRST.duplicate() if _shift() == 1 else Dialogue.OVERTIME_INTRO.pick_random().duplicate()
 	else:
 		lines = Dialogue.DAY_INTRO[day].duplicate()
+		if day == 1 and Settings.touch:   # บรรทัดที่ 2-4 สอนเมาส์/คลิกขวา → ใช้เวอร์ชันสัมผัสแทน
+			lines.remove_at(1)
+			lines.remove_at(1)
+			lines.remove_at(1)
+			for i in Dialogue.DAY1_TOUCH_CONTROLS.size():
+				lines.insert(1 + i, Dialogue.DAY1_TOUCH_CONTROLS[i])
 		if day == 1 and Settings.night_shift:
 			lines[0] = Dialogue.NIGHT_FIRST_LINE
 	for m in _cur_day.get("modifiers", []):

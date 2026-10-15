@@ -25,6 +25,8 @@
 - โครงสร้างเกมที่วางไว้: แต่ละ **"วัน"** boss ตั้งโควต้าความสูง → ถึงก็ผ่าน / ไม่ถึงหรือกองล้ม = โดนไล่ออก
 - เกมอ้างอิง: Super Stacker 2, Tower Bloxx, Stack
 
+> **มือถือ:** เล่นบนเบราว์เซอร์มือถือได้ผ่าน "โหมดสัมผัส" (`Settings.touch`) ดู [Touch / มือถือ](#touch--มือถือ)
+>
 > **สถานะ (หลัง Phase 2):** มีเครน + กล้อง 360°, ระบบ 5 วัน/โควต้า, boss พูดแบบพิมพ์ทีละตัว (เงาร่าง + ตาเรืองแสง),
 > หน้า title / โดนไล่ออก / จบเกม / tutorial วันที่ 1 / สุ่มขยะแบบ bag / item 6 ชนิดแบบ Buckshot Roulette / ลุค PS1 / ตัวปรับของวัน (ลม ฝน แผ่นดินไหว) / ขยะพิเศษ / สั่นจอ / เสียง / ฟอนต์ pixel / ฉากจบ / ดู [Roadmap](#8-roadmap)
 
@@ -47,7 +49,7 @@
 / Hyprland (tiling) ไม่สนขนาดหน้าต่างที่เกมขอ → ทดสอบขนาดจริงด้วย `xvfb-run -s "-screen 0 1280x720x24" godot --display-driver x11 ...`
 / **ขนาด embed บน itch.io:** `1280×720` (×3) หรือ `960×540` (×2) + เปิดปุ่ม Fullscreen / FPS บนเว็บไม่พอ → ลดเป็น `852×480`
 / **texture `colormap.png` ของ Kenney ต้องเป็น Lossless, ไม่มี mipmap, `detect_3d/compress_to=0`** — ถ้าปล่อยให้ Godot แปลงเป็น VRAM (S3TC)
-สี palette จะเพี้ยน และเว็บบนมือถือไม่มี texture (preset Web ใส่แค่ฟอร์แมตเดสก์ท็อป)
+สี palette จะเพี้ยน (preset Web เปิดฟอร์แมตมือถือ ETC2/ASTC ด้วยแล้ว — texture อื่นที่ VRAM-compress จึงขึ้นบนมือถือได้)
 
 **ข้อจำกัดเรื่อง web export** (มี `export_presets.cfg` preset "Web" แล้ว — single-threaded, export ไป `build/web/`, โฟลเดอร์ `build/` ถูก gitignore):
 - ต้องเป็น **single-threaded** (ปิด Thread Support) เพื่อลง itch.io ได้ง่าย
@@ -406,7 +408,23 @@ Main (Node3D)                ← scripts/main.gd
 — ตั้งไว้ใน `update_ui()` ถ้าจะเพิ่มสถิติอื่นต่อบรรทัดในฟังก์ชันเดียวกันนี้ได้เลย ยังไม่มี node แยก
 สำหรับแต่ละค่า
 
-### Controls — `_unhandled_input()` (ใช้เมาส์อย่างเดียว)
+### Touch / มือถือ
+
+`Settings.touch` (static, ไม่บันทึกลง cfg) เปิดโหมดสัมผัส: `Settings.detect_touch()` ตอนเปิดเกม (`OS.has_feature("web_android"/"web_ios")`) + `main._input()` จับ `InputEventScreenTouch` ครั้งแรก
+(แท็บเล็ต/เครื่องที่เดาไม่ออก) → `_apply_touch_mode()` / **เล่นบนคอมไม่ได้รับผลกระทบ** ทุกอย่างของมือถือเช็ค `Settings.touch` ก่อน
+- **เล็ง:** Godot แปลงนิ้วแรกเป็นเมาส์ซ้ายอยู่แล้ว (`emulate_mouse_from_touch`) → โหมดสัมผัส `main._unhandled_input()` ใช้ event เมาส์นั้นแค่เก็บ `_aim_pos` (ไม่ปล่อยชิ้น) `move_held_block()` อ่าน `_aim_pos` แทนเมาส์
+  ปล่อยชิ้นด้วยปุ่ม DROP → `_drop_current()` (ใช้ร่วมกับคลิกซ้ายบนคอม) / `_aim_pos` คงอยู่ข้ามชิ้น (ตั้งกลางจอครั้งเดียว) / ปุ่ม UI กิน event ก่อนถึง `_unhandled_input` จึงกดปุ่มแล้วชิ้นไม่กระโดด
+- **ปุ่ม:** `TouchControls` (`scripts/touch_controls.gd`, CanvasLayer 5) DROP / SPIN / FLIP มุมขวาล่าง (เว้นขวา 20 px ให้ `HeightMeter`), VIEW มุมซ้ายเหนือข้อความแนะนำปุ่ม / main ตั้ง `visible` ทุกเฟรม (`Settings.touch and HOLDING`)
+- **กล้อง:** `OrbitCamera._touch_input()` เก็บนิ้วใน `_touches` — ≥ 2 นิ้ว = `dragging` (main หยุดเล็ง), ลากไปทางเดียวกัน = หมุน `yaw`, บีบ = เปลี่ยน `zoom` ตามอัตราส่วนระยะห่างนิ้ว
+- **ประสิทธิภาพ:** `scaling_3d_scale = TOUCH_SCALE_3D` (0.5) เฉพาะโหมดสัมผัส (UI 2D ไม่โดน) / export preset Web เปิด `vram_texture_compression/for_mobile` + `project.godot` `import_etc2_astc=true`
+  (ไม่งั้น texture VRAM หายบนมือถือ — `colormap.png` ยัง Lossless ตามเดิม)
+- **จอแนวตั้ง:** main `_build_rotate_notice()` ป้าย `ROTATE YOUR PHONE` (CanvasLayer 25 กินคลิก)
+- **ข้อความ:** `Settings.wording(text)` เปลี่ยน "click" → "tap" ในโหมดสัมผัส (hint ของบทพูด/สรุปผล/หน้าจบ/ร้าน) / วันที่ 1 ใช้ `Dialogue.DAY1_TOUCH_CONTROLS` แทนบรรทัดสอนเมาส์ / `TitleMenu.HOW_TO_TOUCH_LINES`
+- **การ์ด (ไม่มี hover บนมือถือ):** `ItemChoice.bind_confirm()` — แตะครั้งแรก = โชว์คำอธิบาย, แตะใบเดิมซ้ำ = ยืนยัน (หน้าเลือกรางวัล / สินบน / ร้าน) / ขายของในร้าน (`_armed_slot`) ก็แตะสองครั้ง
+- **itch.io:** ติ๊ก Mobile friendly + Orientation Landscape + Fullscreen button ในหน้าตั้งค่าเกม
+- ทดสอบบนคอม: probe ที่ตั้ง `Settings.touch = true` แล้วยิง `Input.parse_input_event()` (`InputEventMouseMotion` / `InputEventScreenTouch` / `InputEventScreenDrag`) ใน `xvfb-run` / **ยังต้องทดสอบบนมือถือจริง + เช็ค FPS**
+
+### Controls — `_unhandled_input()` (ใช้เมาส์อย่างเดียว บนคอม — มือถือดู Touch ด้านบน)
 
 | Input | ผล |
 | --- | --- |

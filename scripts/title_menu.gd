@@ -39,6 +39,21 @@ const HOW_TO_LINES := [
 	"out of pieces. Lose 3 pieces",
 	"or break the TV: you're fired.",
 ]
+const HOW_TO_TOUCH_LINES := [
+	"Drag: move the piece",
+	"DROP button: let it go",
+	"SPIN / FLIP buttons: turn it",
+	"2 fingers drag: look around",
+	"2 fingers pinch: zoom",
+	"VIEW button: reset camera",
+	"Tap item slot: use item",
+	"Red guide: it will miss the pile",
+	"PAUSE button: pause",
+	"",
+	"Reach the quota before you run",
+	"out of pieces. Lose 3 pieces",
+	"or break the TV: you're fired.",
+]
 
 var _root: Control
 var _subtitle: Label
@@ -75,7 +90,7 @@ func _ready() -> void:
 	box.add_child(_button("PLAY", func() -> void: play_pressed.emit()))
 	_overtime_button = _button("OVERTIME", func() -> void: overtime_pressed.emit())
 	box.add_child(_overtime_button)
-	box.add_child(_button("HOW TO PLAY", _open_panel.bind("HOW TO PLAY", HOW_TO_LINES)))
+	box.add_child(_button("HOW TO PLAY", func() -> void: _open_panel("HOW TO PLAY", HOW_TO_TOUCH_LINES if Settings.touch else HOW_TO_LINES)))
 	box.add_child(_button("SETTINGS", func() -> void: settings_pressed.emit()))
 	box.add_child(_button("CREDITS", _open_panel.bind("CREDITS", CREDITS_LINES)))
 

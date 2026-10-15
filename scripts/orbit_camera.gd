@@ -33,6 +33,7 @@ var _right_down := false
 var _resetting := false      # กำลังหมุนกลับมุมฉาก (กด C)
 var _reset_yaw := 0.0
 var _drag_dist := 0.0
+var _touches := {}           # นิ้วที่แตะอยู่ (index → ตำแหน่ง) — สองนิ้วขึ้นไป = ลากหมุนกล้อง / บีบซูม
 
 
 func _ready() -> void:
@@ -74,7 +75,43 @@ func reset_view() -> void:
 	_resetting = true
 
 
+# มือถือ: สองนิ้วลาก = หมุนกล้อง (นิ้วทั้งสองขยับไปทางเดียวกัน) / บีบเข้า-ออก = ซูม
+# นิ้วเดียวเป็นของ main.gd (ลากเล็ง) จึงตั้ง dragging เฉพาะตอนมี ≥ 2 นิ้ว
+func _touch_input(event: InputEvent) -> void:
+	if not can_zoom:
+		_touches.clear()
+		dragging = false
+		return
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_touches[event.index] = event.position
+		else:
+			_touches.erase(event.index)
+		dragging = _touches.size() >= 2
+		if dragging:
+			_resetting = false
+	elif event is InputEventScreenDrag and _touches.has(event.index):
+		var drag := event as InputEventScreenDrag
+		var old: Vector2 = _touches[drag.index]
+		_touches[drag.index] = drag.position
+		if _touches.size() < 2:
+			return
+		var other := Vector2.ZERO
+		for i in _touches:
+			if i != drag.index:
+				other = _touches[i]
+				break
+		var old_dist := old.distance_to(other)
+		var new_dist := drag.position.distance_to(other)
+		if old_dist > 1.0 and new_dist > 1.0:
+			zoom = clampf(zoom * old_dist / new_dist, ZOOM_MIN, ZOOM_MAX)
+		yaw -= drag.relative.x * 0.5 * DRAG_SENS * Settings.camera_sens
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		_touch_input(event)
+		return
 	if can_zoom and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_C:
 		reset_view()
 	if can_zoom and event is InputEventMouseButton and event.pressed:
